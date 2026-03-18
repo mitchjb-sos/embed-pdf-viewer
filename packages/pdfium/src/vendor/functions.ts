@@ -36,6 +36,7 @@ export const functions = {
   EPDFAction_CreateRemoteGoToDest: [['number', 'number', 'number'] as const, 'number'] as const,
   EPDFAction_CreateURI: [['number', 'string'] as const, 'number'] as const,
   EPDFAnnot_ApplyRedaction: [['number', 'number'] as const, 'boolean'] as const,
+  EPDFAnnot_ClearBorderEffect: [['number'] as const, 'boolean'] as const,
   EPDFAnnot_ClearColor: [['number', 'number'] as const, 'boolean'] as const,
   EPDFAnnot_ClearMKColor: [['number', 'number'] as const, 'boolean'] as const,
   EPDFAnnot_ClearRectangleDifferences: [['number'] as const, 'boolean'] as const,
@@ -84,6 +85,7 @@ export const functions = {
   EPDFAnnot_SetAction: [['number', 'number'] as const, 'boolean'] as const,
   EPDFAnnot_SetAPMatrix: [['number', 'number', 'number'] as const, 'boolean'] as const,
   EPDFAnnot_SetBorderDashPattern: [['number', 'number', 'number'] as const, 'boolean'] as const,
+  EPDFAnnot_SetBorderEffect: [['number', 'number'] as const, 'boolean'] as const,
   EPDFAnnot_SetBorderStyle: [['number', 'number', 'number'] as const, 'boolean'] as const,
   EPDFAnnot_SetColor: [
     ['number', 'number', 'number', 'number', 'number'] as const,

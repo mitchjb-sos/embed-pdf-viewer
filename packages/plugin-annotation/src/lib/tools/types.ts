@@ -222,6 +222,8 @@ export type AnnotationTool<
     deactivateToolAfterCreate?: boolean;
     /** When true, select the annotation immediately after creation. Overrides plugin config. */
     selectAfterCreate?: boolean;
+    /** When true, automatically enter editing mode after creating the annotation. Implies selectAfterCreate. */
+    editAfterCreate?: boolean;
     /** Override whether this annotation type uses AP rendering before editing (default: true) */
     useAppearanceStream?: boolean;
   } & InsertUprightBehaviorFor<T> &

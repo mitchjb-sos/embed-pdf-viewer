@@ -507,6 +507,8 @@ const freeTextTools = [
     },
     behavior: {
       insertUpright: true,
+      editAfterCreate: true,
+      selectAfterCreate: true,
     },
     transform: patchFreeText,
   },

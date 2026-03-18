@@ -36,6 +36,8 @@ export interface PropertyConfig {
   debounce?: boolean;
   /** If true, only show this property when editing an existing annotation (not for tool defaults) */
   editOnly?: boolean;
+  /** If true, show cloudy border options in the stroke style picker */
+  showCloudy?: boolean;
 }
 
 /**
@@ -79,6 +81,12 @@ export const PROPERTY_CONFIGS: Record<string, PropertyConfig> = {
     key: 'strokeStyle',
     type: 'strokeStyle',
     labelKey: 'annotation.borderStyle',
+  },
+  strokeStyleWithCloudy: {
+    key: 'strokeStyle',
+    type: 'strokeStyle',
+    labelKey: 'annotation.borderStyle',
+    showCloudy: true,
   },
   lineEndings: {
     key: 'lineEndings',
@@ -156,9 +164,9 @@ export const TOOL_PROPERTIES: Record<string, string[]> = {
   inkHighlighter: ['strokeColor', 'opacity', 'strokeWidth', 'blendMode', 'rotation'],
 
   // Shapes
-  circle: ['color', 'opacity', 'strokeColor', 'strokeStyle', 'strokeWidth', 'rotation'],
-  square: ['color', 'opacity', 'strokeColor', 'strokeStyle', 'strokeWidth', 'rotation'],
-  polygon: ['strokeColor', 'opacity', 'strokeStyle', 'strokeWidth', 'color', 'rotation'],
+  circle: ['color', 'opacity', 'strokeColor', 'strokeStyleWithCloudy', 'strokeWidth', 'rotation'],
+  square: ['color', 'opacity', 'strokeColor', 'strokeStyleWithCloudy', 'strokeWidth', 'rotation'],
+  polygon: ['strokeColor', 'opacity', 'strokeStyleWithCloudy', 'strokeWidth', 'color', 'rotation'],
   line: [
     'strokeColor',
     'opacity',

@@ -3277,10 +3277,9 @@ export class PdfiumNative implements IPdfiumExecutor {
     }
 
     if (annotation.type === PdfAnnotationSubtype.POLYGON) {
-      this.setRectangleDifferences(
-        annotationPtr,
-        (annotation as PdfPolygonAnnoObject).rectangleDifferences,
-      );
+      const poly = annotation as PdfPolygonAnnoObject;
+      this.setRectangleDifferences(annotationPtr, poly.rectangleDifferences);
+      this.setBorderEffect(annotationPtr, poly.cloudyBorderIntensity);
     }
 
     // Apply base annotation properties (author, contents, dates, flags, custom, IRT, RT)
@@ -3396,6 +3395,7 @@ export class PdfiumNative implements IPdfiumExecutor {
     }
 
     this.setRectangleDifferences(annotationPtr, annotation.rectangleDifferences);
+    this.setBorderEffect(annotationPtr, annotation.cloudyBorderIntensity);
 
     // Apply base annotation properties (author, contents, dates, flags, custom, IRT, RT)
     return this.applyBaseAnnotationProperties(doc, page, pagePtr, annotationPtr, annotation);
@@ -5757,6 +5757,20 @@ export class PdfiumNative implements IPdfiumExecutor {
   }
 
   /**
+   * Sets or clears the /BE (border effect) dictionary on an annotation.
+   *
+   * @param annotationPtr  pointer to an `FPDF_ANNOTATION`
+   * @param intensity  cloudy border intensity, or `undefined` to clear
+   * @returns `true` on success
+   */
+  private setBorderEffect(annotationPtr: number, intensity: number | undefined): boolean {
+    if (intensity === undefined || intensity <= 0) {
+      return this.pdfiumModule.EPDFAnnot_ClearBorderEffect(annotationPtr);
+    }
+    return this.pdfiumModule.EPDFAnnot_SetBorderEffect(annotationPtr, intensity);
+  }
+
+  /**
    * Get the date of the annotation
    *
    * @param annotationPtr - pointer to an `FPDF_ANNOTATION`
@@ -6819,6 +6833,7 @@ export class PdfiumNative implements IPdfiumExecutor {
     }
 
     const rd = this.getRectangleDifferences(annotationPtr);
+    const be = this.getBorderEffect(annotationPtr);
 
     return {
       pageIndex: page.index,
@@ -6832,6 +6847,7 @@ export class PdfiumNative implements IPdfiumExecutor {
       strokeStyle,
       strokeDashArray,
       vertices,
+      ...(be.ok && { cloudyBorderIntensity: be.intensity }),
       ...(rd.ok && {
         rectangleDifferences: {
           left: rd.left,
@@ -7515,6 +7531,7 @@ export class PdfiumNative implements IPdfiumExecutor {
     }
 
     const rd = this.getRectangleDifferences(annotationPtr);
+    const be = this.getBorderEffect(annotationPtr);
 
     return {
       pageIndex: page.index,
@@ -7527,6 +7544,7 @@ export class PdfiumNative implements IPdfiumExecutor {
       strokeColor: strokeColor ?? '#FF0000',
       strokeStyle,
       ...(strokeDashArray !== undefined && { strokeDashArray }),
+      ...(be.ok && { cloudyBorderIntensity: be.intensity }),
       ...(rd.ok && {
         rectangleDifferences: {
           left: rd.left,
@@ -7575,6 +7593,7 @@ export class PdfiumNative implements IPdfiumExecutor {
     }
 
     const rd = this.getRectangleDifferences(annotationPtr);
+    const be = this.getBorderEffect(annotationPtr);
 
     return {
       pageIndex: page.index,
@@ -7587,6 +7606,7 @@ export class PdfiumNative implements IPdfiumExecutor {
       strokeWidth,
       strokeStyle,
       ...(strokeDashArray !== undefined && { strokeDashArray }),
+      ...(be.ok && { cloudyBorderIntensity: be.intensity }),
       ...(rd.ok && {
         rectangleDifferences: {
           left: rd.left,

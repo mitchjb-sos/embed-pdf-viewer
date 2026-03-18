@@ -31,6 +31,7 @@ export type AnnotationEvent =
       pageIndex: number;
       ctx?: AnnotationCreateContext<any>;
       committed: boolean;
+      editAfterCreate?: boolean;
     }
   | {
       type: 'update';
@@ -165,6 +166,8 @@ export interface AnnotationPluginConfig extends BasePluginConfig {
   selectAfterCreate?: boolean;
   /** Initial lock mode for new documents. Defaults to `{ type: 'none' }` (nothing locked). */
   locked?: LockMode;
+  /** When true (default false), automatically enter edit mode after creating an annotation. */
+  editAfterCreate?: boolean;
 }
 
 /**
