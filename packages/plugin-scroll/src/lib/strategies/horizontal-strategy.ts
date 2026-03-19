@@ -1,4 +1,5 @@
 import { PdfPageObjectWithRotatedSize } from '@embedpdf/models';
+import { Size } from '@embedpdf/models';
 import { ViewportMetrics } from '@embedpdf/plugin-viewport';
 import { BaseScrollStrategy, ScrollStrategyConfig } from './base-strategy';
 import { VirtualItem, PageLayout } from '../types/virtual-item';
@@ -22,6 +23,7 @@ export class HorizontalScrollStrategy extends BaseScrollStrategy {
           height: page.size.height,
           rotatedWidth: page.rotatedSize.width,
           rotatedHeight: page.rotatedSize.height,
+          elevated: false,
         };
         pageX += page.rotatedSize.width + this.pageGap;
         return layout;
@@ -65,5 +67,19 @@ export class HorizontalScrollStrategy extends BaseScrollStrategy {
 
   protected getClientSize(viewport: ViewportMetrics): number {
     return viewport.clientWidth;
+  }
+
+  /** Horizontal scroll: extent along scroll axis is width. */
+  protected getItemSizeAlongScrollAxis(item: VirtualItem): number {
+    return item.width;
+  }
+
+  /**
+   * No centering for horizontal layout. Items are laid out in a simple row;
+   * using total content width would produce incorrect offsets and shift pages.
+   */
+  /* eslint-disable no-unused-vars -- override intentionally ignores params */
+  protected getCenteringOffsetX(_item: VirtualItem, _totalContentSize: Size | undefined): number {
+    return 0;
   }
 }

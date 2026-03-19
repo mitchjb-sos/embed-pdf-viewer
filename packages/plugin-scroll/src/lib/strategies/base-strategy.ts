@@ -33,6 +33,22 @@ export abstract class BaseScrollStrategy {
   abstract getTotalContentSize(virtualItems: VirtualItem[]): Size;
   protected abstract getScrollOffset(viewport: ViewportMetrics): number;
   protected abstract getClientSize(viewport: ViewportMetrics): number;
+  
+  /**
+   * Returns the item's extent along the scroll axis. Vertical layout uses height;
+   * horizontal layout uses width. Used for visible range and end spacing calculations.
+   */
+  protected abstract getItemSizeAlongScrollAxis(item: VirtualItem): number;
+
+  /**
+   * Horizontal centering offset for items narrower than the content max width.
+   * Vertical layout centers spreads within the row; horizontal layout overrides to 0
+   * since items stay in a simple row without centering.
+   */
+  protected getCenteringOffsetX(_item: VirtualItem, totalContentSize: Size | undefined): number {
+    if (!totalContentSize || _item.width >= totalContentSize.width) return 0;
+    return (totalContentSize.width - _item.width) / 2;
+  }
 
   protected getVisibleRange(
     viewport: ViewportMetrics,
@@ -44,10 +60,14 @@ export abstract class BaseScrollStrategy {
     const viewportStart = scrollOffset;
     const viewportEnd = scrollOffset + clientSize;
 
+    // Use extent along scroll axis (height for vertical, width for horizontal)
     let startIndex = 0;
     while (
       startIndex < virtualItems.length &&
-      (virtualItems[startIndex].offset + virtualItems[startIndex].height) * scale <= viewportStart
+      (virtualItems[startIndex].offset +
+        this.getItemSizeAlongScrollAxis(virtualItems[startIndex])) *
+        scale <=
+        viewportStart
     ) {
       startIndex++;
     }
@@ -75,7 +95,7 @@ export abstract class BaseScrollStrategy {
       visibleItems,
       viewport,
       scale,
-      totalContentSize.width,
+      totalContentSize,
     );
     const visiblePages = pageVisibilityMetrics.map((m) => m.pageNumber);
     const renderedPageIndexes = virtualItems
@@ -85,11 +105,11 @@ export abstract class BaseScrollStrategy {
     const first = virtualItems[range.start];
     const last = virtualItems[range.end];
     const startSpacing = first ? first.offset * scale : 0;
+    const lastItem = virtualItems[virtualItems.length - 1];
+    // End spacing = distance from last rendered item to end of content (uses extent along scroll axis)
     const endSpacing = last
-      ? (virtualItems[virtualItems.length - 1].offset + // end of content
-          virtualItems[virtualItems.length - 1].height) *
-          scale - // minus
-        (last.offset + last.height) * scale // end of last rendered
+      ? (lastItem.offset + this.getItemSizeAlongScrollAxis(lastItem)) * scale -
+        (last.offset + this.getItemSizeAlongScrollAxis(last)) * scale
       : 0;
 
     return {
@@ -107,15 +127,12 @@ export abstract class BaseScrollStrategy {
     virtualItems: VirtualItem[],
     viewport: ViewportMetrics,
     scale: number,
-    contentWidth?: number,
+    totalContentSize?: Size,
   ): ScrollMetrics['pageVisibilityMetrics'] {
     const visibilityMetrics: ScrollMetrics['pageVisibilityMetrics'] = [];
-    // Calculate max width for centering if not provided
-    const maxWidth = contentWidth ?? Math.max(...virtualItems.map((i) => i.width));
 
     virtualItems.forEach((item) => {
-      // Calculate horizontal centering offset for items narrower than max width
-      const centeringOffsetX = item.width < maxWidth ? (maxWidth - item.width) / 2 : 0;
+      const centeringOffsetX = this.getCenteringOffsetX(item, totalContentSize);
 
       item.pageLayouts.forEach((page) => {
         const itemX = (item.x + centeringOffsetX) * scale;
@@ -194,14 +211,7 @@ export abstract class BaseScrollStrategy {
     const pageLayout = item.pageLayouts.find((layout) => layout.pageNumber === pageNumber);
     if (!pageLayout) return null;
 
-    // Calculate centering offset for items that are narrower than the maximum width
-    let centeringOffsetX = 0;
-    if (totalContentSize) {
-      const maxWidth = totalContentSize.width;
-      if (item.width < maxWidth) {
-        centeringOffsetX = (maxWidth - item.width) / 2;
-      }
-    }
+    const centeringOffsetX = this.getCenteringOffsetX(item, totalContentSize);
 
     return {
       origin: {
