@@ -1,5 +1,9 @@
 import { CSSProperties, MouseEvent, useState } from '@framework';
-import { PdfWidgetAnnoObject, PDF_FORM_FIELD_TYPE } from '@embedpdf/models';
+import {
+  PdfWidgetAnnoObject,
+  PDF_FORM_FIELD_TYPE,
+  standardFontCssProperties,
+} from '@embedpdf/models';
 import { TrackedAnnotation } from '@embedpdf/plugin-annotation';
 
 export interface FormListboxProps {
@@ -49,7 +53,7 @@ export function FormListbox({ annotation, isSelected, scale, onClick, style }: F
             padding: `0 ${4 * scale}px`,
             fontSize,
             lineHeight: `${lineHeight}px`,
-            fontFamily: 'Helvetica, Arial, sans-serif',
+            ...standardFontCssProperties(object.fontFamily),
             color: opt.isSelected ? '#FFFFFF' : (object.fontColor ?? '#000000'),
             background: opt.isSelected ? 'rgba(0, 51, 113, 1)' : 'transparent',
             whiteSpace: 'nowrap',

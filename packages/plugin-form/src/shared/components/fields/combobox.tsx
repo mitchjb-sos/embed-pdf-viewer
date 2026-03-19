@@ -40,7 +40,7 @@ export function ComboboxField(props: ComboboxFieldProps) {
       {...selectProps(isMultipleChoice, selectedTexts)}
       onChange={handleChange}
       onBlur={onBlur}
-      style={selectStyle}
+      style={{ ...selectStyle, opacity: 0 }}
     >
       {options.map((option: PdfWidgetAnnoOption, index) => {
         return (

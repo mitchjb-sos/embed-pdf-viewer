@@ -32,9 +32,11 @@ export type RadioButtonFieldProps = Omit<FieldProps, 'annotation'> & {
 };
 
 export type ComboboxFieldProps = Omit<FieldProps, 'annotation'> & {
-  annotation: PdfWidgetAnnoObject & {
-    field: PdfComboboxWidgetAnnoField | PdfListboxWidgetAnnoField;
-  };
+  annotation: PdfWidgetAnnoObject & { field: PdfComboboxWidgetAnnoField };
+};
+
+export type ListboxFieldProps = Omit<FieldProps, 'annotation'> & {
+  annotation: PdfWidgetAnnoObject & { field: PdfListboxWidgetAnnoField };
 };
 
 export type PushButtonFieldProps = Omit<FieldProps, 'annotation'> & {

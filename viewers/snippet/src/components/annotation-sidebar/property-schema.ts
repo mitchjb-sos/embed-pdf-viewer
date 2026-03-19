@@ -217,8 +217,10 @@ export const TOOL_PROPERTIES: Record<string, string[]> = {
   redact: ['strokeColor', 'color', 'opacity'],
 
   // Form widgets
-  formTextField: ['fontSize', 'fontColor', 'strokeColor', 'color', 'strokeWidth'],
+  formTextField: ['fontSize', 'fontColor', 'strokeColor', 'strokeWidth', 'color'],
   formCheckbox: ['strokeColor', 'color', 'strokeWidth'],
+  formCombobox: ['fontSize', 'fontColor', 'strokeColor', 'strokeWidth', 'color'],
+  formListbox: ['fontFamily', 'fontSize', 'fontColor', 'strokeColor', 'strokeWidth', 'color'],
 };
 
 /**

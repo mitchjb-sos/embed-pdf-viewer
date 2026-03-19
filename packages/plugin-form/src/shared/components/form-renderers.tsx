@@ -10,7 +10,10 @@ import { FormTextField } from './annotations/form-text-field';
 import { FormCheckbox } from './annotations/form-checkbox';
 import { FormCombobox } from './annotations/form-combobox';
 import { FormListbox } from './annotations/form-listbox';
-import { FormWidgetFillMode } from './form-widget-fill-mode';
+import { TextFillMode } from './fill-mode/text-fill-mode';
+import { ToggleFillMode } from './fill-mode/toggle-fill-mode';
+import { ComboboxFillMode } from './fill-mode/combobox-fill-mode';
+import { ListboxFillMode } from './fill-mode/listbox-fill-mode';
 
 export interface WidgetPreviewData {
   rect: Rect;
@@ -53,7 +56,7 @@ export const formRenderers: BoxedAnnotationRenderer[] = [
     ),
     interactionDefaults: { isDraggable: false, isResizable: true, isRotatable: false },
     useAppearanceStream: false,
-    renderLocked: (props) => <FormWidgetFillMode {...props} />,
+    renderLocked: (props) => <TextFillMode {...props} />,
   }),
   createRenderer<PdfWidgetAnnoObject, WidgetPreviewData>({
     id: 'formCheckbox',
@@ -87,7 +90,7 @@ export const formRenderers: BoxedAnnotationRenderer[] = [
     ),
     interactionDefaults: { isDraggable: false, isResizable: true, isRotatable: false },
     useAppearanceStream: false,
-    renderLocked: (props) => <FormWidgetFillMode {...props} />,
+    renderLocked: (props) => <ToggleFillMode {...props} />,
   }),
   createRenderer<PdfWidgetAnnoObject, WidgetPreviewData>({
     id: 'formCombobox',
@@ -122,7 +125,7 @@ export const formRenderers: BoxedAnnotationRenderer[] = [
     ),
     interactionDefaults: { isDraggable: false, isResizable: true, isRotatable: false },
     useAppearanceStream: false,
-    renderLocked: (props) => <FormWidgetFillMode {...props} />,
+    renderLocked: (props) => <ComboboxFillMode {...props} />,
   }),
   createRenderer<PdfWidgetAnnoObject, WidgetPreviewData>({
     id: 'formListbox',
@@ -156,6 +159,6 @@ export const formRenderers: BoxedAnnotationRenderer[] = [
     ),
     interactionDefaults: { isDraggable: false, isResizable: true, isRotatable: false },
     useAppearanceStream: false,
-    renderLocked: (props) => <FormWidgetFillMode {...props} />,
+    renderLocked: (props) => <ListboxFillMode {...props} />,
   }),
 ];

@@ -1,5 +1,9 @@
 import { CSSProperties, MouseEvent, useState } from '@framework';
-import { PdfWidgetAnnoObject, PDF_FORM_FIELD_TYPE } from '@embedpdf/models';
+import {
+  PdfWidgetAnnoObject,
+  PDF_FORM_FIELD_TYPE,
+  standardFontCssProperties,
+} from '@embedpdf/models';
 import { TrackedAnnotation } from '@embedpdf/plugin-annotation';
 
 export interface FormComboboxProps {
@@ -47,7 +51,7 @@ export function FormCombobox({ annotation, isSelected, scale, onClick, style }: 
           flex: 1,
           padding: `0 ${4 * scale}px`,
           fontSize,
-          fontFamily: 'Helvetica, Arial, sans-serif',
+          ...standardFontCssProperties(object.fontFamily),
           color: object.fontColor ?? '#000000',
           whiteSpace: 'nowrap',
           overflow: 'hidden',
