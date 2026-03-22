@@ -543,6 +543,13 @@ function ChoiceFieldSection({
             checked={!!(field.flag & PDF_FORM_FIELD_FLAG.REQUIRED)}
             onChange={(v) => toggleFlag(PDF_FORM_FIELD_FLAG.REQUIRED, v)}
           />
+          {field.type === PDF_FORM_FIELD_TYPE.LISTBOX && (
+            <Checkbox
+              label={translate('form.multiSelect', { fallback: 'Multi Select' })}
+              checked={!!(field.flag & PDF_FORM_FIELD_FLAG.CHOICE_MULTL_SELECT)}
+              onChange={(v) => toggleFlag(PDF_FORM_FIELD_FLAG.CHOICE_MULTL_SELECT, v)}
+            />
+          )}
         </div>
       </div>
     </div>

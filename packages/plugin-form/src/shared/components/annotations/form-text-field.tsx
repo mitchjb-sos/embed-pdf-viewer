@@ -63,7 +63,7 @@ export function FormTextField({
         display: 'flex',
         alignItems: 'center',
         overflow: 'hidden',
-        ...(!isComb ? { padding: `0 ${2 * scale}px` } : {}),
+        ...(!isComb ? { padding: `${borderWidth}px ${borderWidth}px` } : {}),
         ...style,
       }}
     >

@@ -116,6 +116,7 @@ import {
 import {
   rectsIntersect,
   isSidebarAnnotation,
+  isSelectableAnnotation,
   getAnnotationCategories,
   isCategoryLocked,
   hasLockedFlag,
@@ -286,7 +287,7 @@ export class AnnotationPlugin extends BasePlugin<
       const pageAnnotations = (docState.pages[pageIndex] ?? [])
         .map((uid) => docState.byUid[uid])
         .filter((ta): ta is TrackedAnnotation => ta !== undefined)
-        .filter((ta) => isSidebarAnnotation(ta));
+        .filter((ta) => isSelectableAnnotation(ta));
 
       // Find annotations that intersect with the marquee rect (excluding locked)
       const selectedIds = pageAnnotations

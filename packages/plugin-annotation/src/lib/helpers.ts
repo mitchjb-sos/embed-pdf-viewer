@@ -160,6 +160,12 @@ export function isCaret(
   return a.object.type === PdfAnnotationSubtype.CARET;
 }
 
+export function isWidget(
+  a: TrackedAnnotation,
+): a is TrackedAnnotation<AnnoOf<PdfAnnotationSubtype.WIDGET>> {
+  return a.object.type === PdfAnnotationSubtype.WIDGET;
+}
+
 export function isSidebarAnnotation(
   a: TrackedAnnotation,
 ): a is TrackedAnnotation<AnnoOf<SidebarSubtype>> {
@@ -177,6 +183,10 @@ export function isSidebarAnnotation(
     isRedact(a) ||
     isCaret(a)
   );
+}
+
+export function isSelectableAnnotation(a: TrackedAnnotation): boolean {
+  return isSidebarAnnotation(a) || isWidget(a);
 }
 
 /* ------------------------------------------------------------------ */
