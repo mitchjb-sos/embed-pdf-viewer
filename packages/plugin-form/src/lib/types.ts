@@ -1,10 +1,12 @@
 import { BasePluginConfig, EventHook } from '@embedpdf/core';
 import {
+  PDF_FORM_FIELD_TYPE,
   PdfErrorReason,
   PdfRenderPageAnnotationOptions,
   PdfTask,
   PdfWidgetAnnoField,
   PdfWidgetAnnoObject,
+  PdfWidgetAnnoOption,
   Task,
 } from '@embedpdf/models';
 
@@ -46,6 +48,19 @@ export type RenameFieldResult =
   | { outcome: 'no-op' }
   | { outcome: 'conflict'; targetAnnotationId: string; fieldName: string };
 
+export interface FormFieldInfo {
+  name: string;
+  type: PDF_FORM_FIELD_TYPE;
+  value: string;
+  readOnly: boolean;
+  options?: PdfWidgetAnnoOption[];
+}
+
+export interface FormReadyEvent {
+  documentId: string;
+  fields: FormFieldInfo[];
+}
+
 export interface FormScope {
   getPageFormAnnoWidgets(pageIndex: number): PdfTask<PdfWidgetAnnoObject[]>;
   setFormFieldValues(
@@ -67,8 +82,12 @@ export interface FormScope {
   getFieldGroup(annotationId: string): FieldGroupEntry[];
   /** Get sibling widget entries sharing the same logical field (excluding the given annotation) */
   getFieldSiblings(annotationId: string): FieldGroupEntry[];
+  getFormValues(): Record<string, string>;
+  getFormFields(): FormFieldInfo[];
+  setFormValues(values: Record<string, string>): PdfTask<boolean>;
   onStateChange: EventHook<FormDocumentState>;
   onFieldValueChange: EventHook<FieldValueChangeEvent>;
+  onFormReady: EventHook<FormFieldInfo[]>;
 }
 
 export interface FormCapability {
@@ -97,7 +116,11 @@ export interface FormCapability {
   getFieldGroup(annotationId: string, documentId?: string): FieldGroupEntry[];
   /** Get sibling widget entries sharing the same logical field (excluding the given annotation) */
   getFieldSiblings(annotationId: string, documentId?: string): FieldGroupEntry[];
+  getFormValues(documentId?: string): Record<string, string>;
+  getFormFields(documentId?: string): FormFieldInfo[];
+  setFormValues(values: Record<string, string>, documentId?: string): PdfTask<boolean>;
   forDocument(documentId: string): FormScope;
   onStateChange: EventHook<FormStateChangeEvent>;
   onFieldValueChange: EventHook<FieldValueChangeEvent>;
+  onFormReady: EventHook<FormReadyEvent>;
 }

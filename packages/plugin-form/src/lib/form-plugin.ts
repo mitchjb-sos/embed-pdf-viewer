@@ -10,7 +10,9 @@ import {
   FieldValueChangeEvent,
   FormCapability,
   FormDocumentState,
+  FormFieldInfo,
   FormPluginConfig,
+  FormReadyEvent,
   FormScope,
   FormState,
   FormStateChangeEvent,
@@ -68,9 +70,13 @@ export class FormPlugin extends BasePlugin<
 
   private readonly state$ = createBehaviorEmitter<FormStateChangeEvent>();
   private readonly fieldValueChange$ = createEmitter<FieldValueChangeEvent>();
+  private readonly formReady$ = createEmitter<FormReadyEvent>();
 
   /** Per-document logical field index: documentId → (fieldKey → FieldGroupEntry[]) */
   private readonly fieldGroupIndex = new Map<string, Map<string, FieldGroupEntry[]>>();
+
+  /** Per-document name-based index: documentId → (fieldName → FieldGroupEntry[]) */
+  private readonly fieldNameIndex = new Map<string, Map<string, FieldGroupEntry[]>>();
 
   /** Per-document tab-order sorted widget list: documentId → FieldGroupEntry[] */
   private readonly orderedFieldIndex = new Map<string, FieldGroupEntry[]>();
@@ -102,6 +108,7 @@ export class FormPlugin extends BasePlugin<
   protected override onDocumentClosed(documentId: string): void {
     this.dispatch(cleanupFormState(documentId));
     this.fieldGroupIndex.delete(documentId);
+    this.fieldNameIndex.delete(documentId);
     this.orderedFieldIndex.delete(documentId);
   }
 
@@ -138,9 +145,13 @@ export class FormPlugin extends BasePlugin<
       getFieldGroup: (annotationId, documentId?) => this.getFieldGroup(annotationId, documentId),
       getFieldSiblings: (annotationId, documentId?) =>
         this.getFieldSiblings(annotationId, documentId),
+      getFormValues: (documentId?) => this.getFormValuesMethod(documentId),
+      getFormFields: (documentId?) => this.getFormFieldsMethod(documentId),
+      setFormValues: (values, documentId?) => this.setFormValuesMethod(values, documentId),
       forDocument: (documentId) => this.createFormScope(documentId),
       onStateChange: this.state$.on,
       onFieldValueChange: this.fieldValueChange$.on,
+      onFormReady: this.formReady$.on,
     };
   }
 
@@ -163,6 +174,9 @@ export class FormPlugin extends BasePlugin<
       getState: () => this.getDocumentState(documentId),
       getFieldGroup: (annotationId) => this.getFieldGroup(annotationId, documentId),
       getFieldSiblings: (annotationId) => this.getFieldSiblings(annotationId, documentId),
+      getFormValues: () => this.getFormValuesMethod(documentId),
+      getFormFields: () => this.getFormFieldsMethod(documentId),
+      setFormValues: (values) => this.setFormValuesMethod(values, documentId),
       onStateChange: (listener: Listener<FormDocumentState>) =>
         this.state$.on((event) => {
           if (event.documentId === documentId) listener(event.state);
@@ -171,6 +185,10 @@ export class FormPlugin extends BasePlugin<
         this.fieldValueChange$.on((event) => {
           if (event.documentId === documentId) listener(event);
         }),
+      onFormReady: (listener: Listener<FormFieldInfo[]>) =>
+        this.formReady$.on((event) => {
+          if (event.documentId === documentId) listener(event.fields);
+        }),
     };
   }
 
@@ -178,6 +196,10 @@ export class FormPlugin extends BasePlugin<
     switch (event.type) {
       case 'loaded':
         this.buildFieldGroupIndex(event.documentId);
+        this.formReady$.emit({
+          documentId: event.documentId,
+          fields: this.getFormFieldsMethod(event.documentId),
+        });
         break;
 
       case 'create':
@@ -265,6 +287,16 @@ export class FormPlugin extends BasePlugin<
 
     this.fieldGroupIndex.set(documentId, idx);
 
+    const nameIdx = new Map<string, FieldGroupEntry[]>();
+    for (const { entry, widget } of allWidgets) {
+      const name = widget.field.name.trim();
+      if (!name) continue;
+      const group = nameIdx.get(name) ?? [];
+      group.push(entry);
+      nameIdx.set(name, group);
+    }
+    this.fieldNameIndex.set(documentId, nameIdx);
+
     const navigable = allWidgets.filter(
       ({ widget }) => !(widget.field.flag & PDF_FORM_FIELD_FLAG.READONLY),
     );
@@ -346,6 +378,107 @@ export class FormPlugin extends BasePlugin<
     return this.getFieldGroup(annotationId, documentId).filter(
       (e) => e.annotationId !== annotationId,
     );
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Form Values API
+  // ─────────────────────────────────────────────────────────
+
+  private getFormValuesMethod(documentId?: string): Record<string, string> {
+    const docId = documentId ?? this.getActiveDocumentId();
+    const nameIdx = this.fieldNameIndex.get(docId);
+    if (!nameIdx) return {};
+
+    const values: Record<string, string> = {};
+    for (const [name, entries] of nameIdx) {
+      const widget = this.resolveWidgetAnnotation(entries[0].annotationId, docId);
+      if (widget) {
+        values[name] = widget.field.value;
+      }
+    }
+    return values;
+  }
+
+  private getFormFieldsMethod(documentId?: string): FormFieldInfo[] {
+    const docId = documentId ?? this.getActiveDocumentId();
+    const nameIdx = this.fieldNameIndex.get(docId);
+    if (!nameIdx) return [];
+
+    const fields: FormFieldInfo[] = [];
+    for (const [name, entries] of nameIdx) {
+      const widget = this.resolveWidgetAnnotation(entries[0].annotationId, docId);
+      if (!widget) continue;
+
+      fields.push({
+        name,
+        type: widget.field.type,
+        value: widget.field.value,
+        readOnly: !!(widget.field.flag & PDF_FORM_FIELD_FLAG.READONLY),
+        ...('options' in widget.field && widget.field.options
+          ? { options: widget.field.options }
+          : {}),
+      });
+    }
+    return fields;
+  }
+
+  private setFormValuesMethod(
+    values: Record<string, string>,
+    documentId?: string,
+  ): PdfTask<boolean> {
+    const docId = documentId ?? this.getActiveDocumentId();
+    const nameIdx = this.fieldNameIndex.get(docId);
+    if (!nameIdx) {
+      return PdfTaskHelper.reject({
+        code: PdfErrorCode.NotFound,
+        message: 'no form fields indexed for this document',
+      });
+    }
+
+    const entries = Object.entries(values);
+    if (entries.length === 0) {
+      return PdfTaskHelper.resolve(true);
+    }
+
+    const resultTask = new Task<boolean, PdfErrorReason>();
+    let pending = entries.length;
+    let failed = false;
+
+    const onComplete = () => {
+      pending--;
+      if (pending === 0 && !failed) {
+        resultTask.resolve(true);
+      }
+    };
+
+    const onError = (err: { code: PdfErrorCode; message: string }) => {
+      if (!failed) {
+        failed = true;
+        resultTask.reject(err);
+      }
+    };
+
+    for (const [name, value] of entries) {
+      const fieldEntries = nameIdx.get(name);
+      if (!fieldEntries || fieldEntries.length === 0) {
+        onComplete();
+        continue;
+      }
+
+      const firstEntry = fieldEntries[0];
+      const widget = this.resolveWidgetAnnotation(firstEntry.annotationId, docId);
+      if (!widget) {
+        onComplete();
+        continue;
+      }
+
+      this.setFormFieldValues(firstEntry.pageIndex, widget, { ...widget.field, value }, docId).wait(
+        () => onComplete(),
+        (error) => onError(error.reason),
+      );
+    }
+
+    return resultTask;
   }
 
   private isToggleField(
@@ -896,6 +1029,7 @@ export class FormPlugin extends BasePlugin<
   async destroy(): Promise<void> {
     this.state$.clear();
     this.fieldValueChange$.clear();
+    this.formReady$.clear();
     super.destroy();
   }
 }
