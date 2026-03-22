@@ -62,13 +62,13 @@ export const checkboxHandlerFactory: HandlerFactory<PdfWidgetAnnoObject> = {
         strokeColor: defaults.strokeColor,
         color: defaults.color,
         strokeWidth: defaults.strokeWidth,
+        exportValue: 'Yes',
         field: {
           type: PDF_FORM_FIELD_TYPE.CHECKBOX,
           flag: defaults.field?.flag ?? PDF_FORM_FIELD_FLAG.NONE,
           name: fieldName,
           alternateName: fieldName,
-          value: '',
-          isChecked: false,
+          value: 'Off',
         },
       } as PdfWidgetAnnoObject;
     };

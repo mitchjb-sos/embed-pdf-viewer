@@ -2141,7 +2141,7 @@ export class PdfiumNative implements IPdfiumExecutor {
             case 'checked': {
               const rawChecked = this.pdfiumModule.FPDFAnnot_IsChecked(formHandle, annotationPtr);
               const currentlyChecked = !!rawChecked;
-              if (currentlyChecked !== value.isChecked) {
+              if (currentlyChecked !== value.checked) {
                 const kReturn = 0x0d;
                 if (!this.pdfiumModule.FORM_OnChar(formHandle, pageCtx.pagePtr, kReturn, 0)) {
                   this.pdfiumModule.FORM_ForceToKillFocus(formHandle);
@@ -2242,9 +2242,13 @@ export class PdfiumNative implements IPdfiumExecutor {
 
             case PDF_FORM_FIELD_TYPE.CHECKBOX:
             case PDF_FORM_FIELD_TYPE.RADIOBUTTON: {
-              const rawChecked = this.pdfiumModule.FPDFAnnot_IsChecked(formHandle, annotationPtr);
-              const currentlyChecked = !!rawChecked;
-              if (currentlyChecked !== field.isChecked) {
+              const currentlyChecked = !!this.pdfiumModule.FPDFAnnot_IsChecked(
+                formHandle,
+                annotationPtr,
+              );
+              const desiredChecked =
+                annotation.exportValue != null && field.value === annotation.exportValue;
+              if (currentlyChecked !== desiredChecked) {
                 const kReturn = 0x0d;
                 if (!this.pdfiumModule.FORM_OnChar(formHandle, pageCtx.pagePtr, kReturn, 0)) {
                   this.pdfiumModule.FORM_ForceToKillFocus(formHandle);
@@ -7060,6 +7064,9 @@ export class PdfiumNative implements IPdfiumExecutor {
     // Type-specific properties
     const field = this.readPdfWidgetAnnoField(formHandle, annotationPtr);
 
+    // Stable export value for toggle widgets (non-"Off" key from AP/N dict)
+    const exportValue = this.readButtonExportValue(annotationPtr);
+
     // MK dictionary colors
     const strokeColor = this.getMKColor(annotationPtr, 0); // EPDF_MK_COLOR_BC
     const color = this.getMKColor(annotationPtr, 1); // EPDF_MK_COLOR_BG
@@ -7076,6 +7083,7 @@ export class PdfiumNative implements IPdfiumExecutor {
       fontColor: da?.fontColor ?? '#000000',
       rect,
       field,
+      ...(exportValue !== undefined && { exportValue }),
       strokeWidth,
       ...(strokeColor !== undefined && { strokeColor }),
       ...(color !== undefined && { color }),
@@ -8314,6 +8322,20 @@ export class PdfiumNative implements IPdfiumExecutor {
     return value || undefined;
   }
 
+  private readButtonExportValue(annotationPtr: number): string | undefined {
+    const len = this.pdfiumModule.EPDFAnnot_GetButtonExportValue(annotationPtr, 0, 0);
+    if (len === 0) return;
+
+    const bytes = (len + 1) * 2;
+    const ptr = this.memoryManager.malloc(bytes);
+
+    this.pdfiumModule.EPDFAnnot_GetButtonExportValue(annotationPtr, ptr, bytes);
+    const value = this.pdfiumModule.pdfium.UTF16ToString(ptr);
+    this.memoryManager.free(ptr);
+
+    return value || undefined;
+  }
+
   /**
    * Get a string value (`/T`, `/M`, `/State`, …) from an attachment.
    *
@@ -8668,7 +8690,7 @@ export class PdfiumNative implements IPdfiumExecutor {
     const value = readString(
       this.pdfiumModule.pdfium,
       (buffer: number, bufferLength) => {
-        return this.pdfiumModule.FPDFAnnot_GetFormFieldValue(
+        return this.pdfiumModule.EPDFAnnot_GetFormFieldRawValue(
           formHandle,
           annotationPtr,
           buffer,
@@ -8703,24 +8725,15 @@ export class PdfiumNative implements IPdfiumExecutor {
         return { ...base, type, maxLen };
       }
 
-      case PDF_FORM_FIELD_TYPE.CHECKBOX: {
-        const as = this.getAnnotString(annotationPtr, 'AS');
-        return {
-          ...base,
-          type,
-          isChecked: !!as && as !== 'Off',
-        };
-      }
+      case PDF_FORM_FIELD_TYPE.CHECKBOX:
+        return { ...base, type };
 
-      case PDF_FORM_FIELD_TYPE.RADIOBUTTON: {
-        const as = this.getAnnotString(annotationPtr, 'AS');
+      case PDF_FORM_FIELD_TYPE.RADIOBUTTON:
         return {
           ...base,
           type,
-          isChecked: !!as && as !== 'Off',
           options: this.readWidgetOptions(formHandle, annotationPtr),
         };
-      }
 
       case PDF_FORM_FIELD_TYPE.COMBOBOX:
         return { ...base, type, options: this.readWidgetOptions(formHandle, annotationPtr) };

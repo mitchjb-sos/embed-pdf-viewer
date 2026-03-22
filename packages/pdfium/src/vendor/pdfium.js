@@ -66,10 +66,12 @@ var createPdfium = (() => {
       '_EPDFAnnot_GetBorderDashPatternCount',
       '_EPDFAnnot_GetBorderEffect',
       '_EPDFAnnot_GetBorderStyle',
+      '_EPDFAnnot_GetButtonExportValue',
       '_EPDFAnnot_GetColor',
       '_EPDFAnnot_GetDefaultAppearance',
       '_EPDFAnnot_GetExtendedRotation',
       '_EPDFAnnot_GetFormFieldObjectNumber',
+      '_EPDFAnnot_GetFormFieldRawValue',
       '_EPDFAnnot_GetIcon',
       '_EPDFAnnot_GetIntent',
       '_EPDFAnnot_GetLineEndings',
@@ -6365,6 +6367,10 @@ var createPdfium = (() => {
     ));
     var _EPDFAnnot_GenerateFormFieldAP = (Module['_EPDFAnnot_GenerateFormFieldAP'] =
       createExportWrapper('EPDFAnnot_GenerateFormFieldAP', 1));
+    var _EPDFAnnot_GetButtonExportValue = (Module['_EPDFAnnot_GetButtonExportValue'] =
+      createExportWrapper('EPDFAnnot_GetButtonExportValue', 3));
+    var _EPDFAnnot_GetFormFieldRawValue = (Module['_EPDFAnnot_GetFormFieldRawValue'] =
+      createExportWrapper('EPDFAnnot_GetFormFieldRawValue', 4));
     var _EPDFAnnot_SetFormFieldValue = (Module['_EPDFAnnot_SetFormFieldValue'] =
       createExportWrapper('EPDFAnnot_SetFormFieldValue', 3));
     var _EPDFAnnot_SetFormFieldName = (Module['_EPDFAnnot_SetFormFieldName'] = createExportWrapper(

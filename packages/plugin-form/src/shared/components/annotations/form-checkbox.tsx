@@ -1,5 +1,5 @@
 import { CSSProperties, MouseEvent, useState } from '@framework';
-import { PdfWidgetAnnoObject, PDF_FORM_FIELD_TYPE } from '@embedpdf/models';
+import { PdfWidgetAnnoObject, isWidgetChecked } from '@embedpdf/models';
 import { TrackedAnnotation } from '@embedpdf/plugin-annotation';
 
 export interface FormCheckboxProps {
@@ -15,8 +15,7 @@ export function FormCheckbox({ annotation, isSelected, scale, onClick, style }: 
   const [isHovered, setIsHovered] = useState(false);
   const { object } = annotation;
 
-  const field = object.field;
-  const isChecked = field.type === PDF_FORM_FIELD_TYPE.CHECKBOX && field.isChecked;
+  const isChecked = isWidgetChecked(object);
 
   return (
     <div

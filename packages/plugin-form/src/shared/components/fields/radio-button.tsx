@@ -1,4 +1,4 @@
-import { PdfWidgetAnnoOption, PDF_FORM_FIELD_FLAG } from '@embedpdf/models';
+import { PdfWidgetAnnoOption, PDF_FORM_FIELD_FLAG, isWidgetChecked } from '@embedpdf/models';
 import { FormEvent, useCallback, useMemo } from '@framework';
 
 import { RadioButtonFieldProps } from '../types';
@@ -10,6 +10,7 @@ export function RadioButtonField(props: RadioButtonFieldProps) {
 
   const { flag, options } = field;
   const name = field.alternateName || field.name;
+  const checked = isWidgetChecked(annotation);
 
   const defaultValue = useMemo(() => {
     const option = options.find((option: PdfWidgetAnnoOption) => option.isSelected);
@@ -18,10 +19,12 @@ export function RadioButtonField(props: RadioButtonFieldProps) {
 
   const handleChange = useCallback(
     (evt: FormEvent) => {
-      const isChecked = (evt.target as HTMLInputElement).checked;
-      onChangeField?.({ ...field, isChecked });
+      const wantChecked = (evt.target as HTMLInputElement).checked;
+      if (wantChecked && annotation.exportValue) {
+        onChangeField?.({ ...field, value: annotation.exportValue });
+      }
     },
-    [onChangeField, field],
+    [onChangeField, field, annotation.exportValue],
   );
 
   const isDisabled = !isEditable || !!(flag & PDF_FORM_FIELD_FLAG.READONLY);
@@ -35,7 +38,7 @@ export function RadioButtonField(props: RadioButtonFieldProps) {
       name={name}
       aria-label={name}
       value={defaultValue}
-      checked={field.isChecked}
+      checked={checked}
       onChange={handleChange}
       style={buttonStyle}
     />

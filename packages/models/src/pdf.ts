@@ -1496,7 +1496,6 @@ export interface PdfTextWidgetAnnoField extends PdfWidgetAnnoFieldBase {
  */
 export interface PdfCheckboxWidgetAnnoField extends PdfWidgetAnnoFieldBase {
   type: PDF_FORM_FIELD_TYPE.CHECKBOX;
-  isChecked: boolean;
 }
 
 /**
@@ -1504,7 +1503,6 @@ export interface PdfCheckboxWidgetAnnoField extends PdfWidgetAnnoFieldBase {
  */
 export interface PdfRadioButtonWidgetAnnoField extends PdfWidgetAnnoFieldBase {
   type: PDF_FORM_FIELD_TYPE.RADIOBUTTON;
-  isChecked: boolean;
   options: PdfWidgetAnnoOption[];
 }
 
@@ -1582,6 +1580,13 @@ export interface PdfWidgetAnnoObject extends PdfAnnotationObjectBase {
    */
   field: PdfWidgetAnnoField;
   /**
+   * The non-"Off" appearance state key from the widget's /AP/N dictionary.
+   * For checkboxes this is typically "Yes"; for radio buttons it is a unique
+   * identifier (usually the widget's NM). Checked state is derived:
+   * `field.value === exportValue`.
+   */
+  exportValue?: string;
+  /**
    * font family of pdf widget object
    */
   fontFamily: PdfStandardFont;
@@ -1605,6 +1610,17 @@ export interface PdfWidgetAnnoObject extends PdfAnnotationObjectBase {
    * Border width in points (BS width)
    */
   strokeWidth?: number;
+}
+
+/**
+ * Returns whether a toggle widget (checkbox / radio button) is currently
+ * in its "on" state by comparing the shared field value against this
+ * widget's unique export value from the /AP/N dictionary.
+ *
+ * @public
+ */
+export function isWidgetChecked(widget: PdfWidgetAnnoObject): boolean {
+  return widget.exportValue != null && widget.field.value === widget.exportValue;
 }
 
 /**
@@ -2858,7 +2874,7 @@ export interface PdfPageTextRuns {
 export type FormFieldValue =
   | { kind: 'text'; text: string }
   | { kind: 'selection'; index: number; isSelected: boolean }
-  | { kind: 'checked'; isChecked: boolean };
+  | { kind: 'checked'; checked: boolean };
 
 /**
  * Transformation that will be applied to annotation

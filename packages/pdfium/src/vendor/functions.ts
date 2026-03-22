@@ -51,6 +51,7 @@ export const functions = {
   EPDFAnnot_GetBorderDashPatternCount: [['number'] as const, 'number'] as const,
   EPDFAnnot_GetBorderEffect: [['number', 'number'] as const, 'boolean'] as const,
   EPDFAnnot_GetBorderStyle: [['number', 'number'] as const, 'number'] as const,
+  EPDFAnnot_GetButtonExportValue: [['number', 'number', 'number'] as const, 'number'] as const,
   EPDFAnnot_GetColor: [
     ['number', 'number', 'number', 'number', 'number'] as const,
     'boolean',
@@ -61,6 +62,10 @@ export const functions = {
   ] as const,
   EPDFAnnot_GetExtendedRotation: [['number', 'number'] as const, 'boolean'] as const,
   EPDFAnnot_GetFormFieldObjectNumber: [['number', 'number'] as const, 'number'] as const,
+  EPDFAnnot_GetFormFieldRawValue: [
+    ['number', 'number', 'number', 'number'] as const,
+    'number',
+  ] as const,
   EPDFAnnot_GetIcon: [['number'] as const, 'number'] as const,
   EPDFAnnot_GetIntent: [['number', 'number', 'number'] as const, 'number'] as const,
   EPDFAnnot_GetLineEndings: [['number', 'number', 'number'] as const, 'boolean'] as const,

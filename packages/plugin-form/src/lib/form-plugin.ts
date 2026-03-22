@@ -26,19 +26,20 @@ import {
 import {
   PdfAnnotationObject,
   PdfAnnotationSubtype,
+  PdfCheckboxWidgetAnnoField,
   PdfDocumentObject,
   PdfErrorCode,
   PdfErrorReason,
   PDF_FORM_FIELD_FLAG,
   PDF_FORM_FIELD_TYPE,
-  PdfCheckboxWidgetAnnoField,
+  PdfRadioButtonWidgetAnnoField,
   PdfTask,
   PdfTaskHelper,
-  PdfRadioButtonWidgetAnnoField,
   PdfWidgetAnnoField,
   PdfWidgetAnnoObject,
   Task,
   TaskSequence,
+  isWidgetChecked,
 } from '@embedpdf/models';
 import {
   AnnotationCapability,
@@ -211,9 +212,6 @@ export class FormPlugin extends BasePlugin<
   ): void {
     if (!this.annotation || !patch.field) return;
 
-    const widget = annotation as PdfWidgetAnnoObject;
-    if (widget.field?.type === PDF_FORM_FIELD_TYPE.RADIOBUTTON) return;
-
     const fieldPatch = patch.field;
 
     const siblings = this.getFieldSiblings(annotation.id, documentId);
@@ -366,7 +364,7 @@ export class FormPlugin extends BasePlugin<
   ): { widget: PdfWidgetAnnoObject; pageIndex: number } | undefined {
     const entries = [...batch.values()];
     const checkedToggleEntry = entries.find(
-      (entry) => this.isToggleField(entry.widget.field) && entry.widget.field.isChecked,
+      (entry) => this.isToggleField(entry.widget.field) && isWidgetChecked(entry.widget),
     );
     return checkedToggleEntry ?? entries[0];
   }
@@ -784,15 +782,17 @@ export class FormPlugin extends BasePlugin<
 
     const field = widget.field;
     if (field.type === PDF_FORM_FIELD_TYPE.CHECKBOX) {
-      this.setFormFieldValues(
-        widget.pageIndex,
-        widget,
-        { ...field, isChecked: !field.isChecked },
-        docId,
-      );
+      const checked = isWidgetChecked(widget);
+      const newValue = checked ? 'Off' : (widget.exportValue ?? 'Yes');
+      this.setFormFieldValues(widget.pageIndex, widget, { ...field, value: newValue }, docId);
     } else if (field.type === PDF_FORM_FIELD_TYPE.RADIOBUTTON) {
-      if (!field.isChecked) {
-        this.setFormFieldValues(widget.pageIndex, widget, { ...field, isChecked: true }, docId);
+      if (!isWidgetChecked(widget) && widget.exportValue) {
+        this.setFormFieldValues(
+          widget.pageIndex,
+          widget,
+          { ...field, value: widget.exportValue },
+          docId,
+        );
       }
     }
   }

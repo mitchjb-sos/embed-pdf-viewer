@@ -55,16 +55,18 @@ export const radioButtonHandlerFactory: HandlerFactory<PdfWidgetAnnoObject> = {
     const buildAnnotation = (rect: Rect): PdfWidgetAnnoObject => {
       const defaults = getDefaults()!;
       const fieldName = `RadioButton_${uuidV4().slice(0, 8)}`;
+      const id = uuidV4();
       return {
         ...defaults,
         type: PdfAnnotationSubtype.WIDGET,
-        id: uuidV4(),
+        id,
         pageIndex,
         rect,
         created: new Date(),
         strokeColor: defaults.strokeColor,
         color: defaults.color,
         strokeWidth: defaults.strokeWidth,
+        exportValue: id,
         field: {
           type: PDF_FORM_FIELD_TYPE.RADIOBUTTON,
           flag:
@@ -72,8 +74,7 @@ export const radioButtonHandlerFactory: HandlerFactory<PdfWidgetAnnoObject> = {
             PDF_FORM_FIELD_FLAG.BUTTON_RADIO | PDF_FORM_FIELD_FLAG.BUTTON_NOTOGGLETOOFF,
           name: fieldName,
           alternateName: fieldName,
-          value: '',
-          isChecked: false,
+          value: 'Off',
           options: [],
         },
       } as PdfWidgetAnnoObject;

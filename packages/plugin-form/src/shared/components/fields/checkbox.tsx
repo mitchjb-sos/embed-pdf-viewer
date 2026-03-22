@@ -1,4 +1,4 @@
-import { PDF_FORM_FIELD_FLAG } from '@embedpdf/models';
+import { PDF_FORM_FIELD_FLAG, isWidgetChecked } from '@embedpdf/models';
 import { FormEvent, useCallback } from '@framework';
 
 import { CheckboxFieldProps } from '../types';
@@ -10,13 +10,15 @@ export function CheckboxField(props: CheckboxFieldProps) {
 
   const { flag } = field;
   const name = field.alternateName || field.name;
+  const checked = isWidgetChecked(annotation);
 
   const handleChange = useCallback(
     (evt: FormEvent) => {
-      const isChecked = (evt.target as HTMLInputElement).checked;
-      onChangeField?.({ ...field, isChecked });
+      const wantChecked = (evt.target as HTMLInputElement).checked;
+      const newValue = wantChecked ? (annotation.exportValue ?? 'Yes') : 'Off';
+      onChangeField?.({ ...field, value: newValue });
     },
-    [onChangeField, field],
+    [onChangeField, field, annotation.exportValue],
   );
 
   const isDisabled = !isEditable || !!(flag & PDF_FORM_FIELD_FLAG.READONLY);
@@ -30,7 +32,7 @@ export function CheckboxField(props: CheckboxFieldProps) {
       name={name}
       aria-label={name}
       value={field.value}
-      checked={field.isChecked}
+      checked={checked}
       onChange={handleChange}
       style={checkboxStyle}
     />

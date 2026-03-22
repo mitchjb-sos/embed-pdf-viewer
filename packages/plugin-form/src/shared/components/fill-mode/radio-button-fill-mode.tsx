@@ -1,5 +1,5 @@
 import { useCallback } from '@framework';
-import { PdfWidgetAnnoField, PdfWidgetAnnoObject } from '@embedpdf/models';
+import { PdfWidgetAnnoObject, isWidgetChecked } from '@embedpdf/models';
 import { AnnotationRendererProps } from '@embedpdf/plugin-annotation/@framework';
 import { useFormWidgetState } from '../../hooks/use-form-widget-state';
 import { useFormDocumentState } from '../../hooks/use-form';
@@ -15,10 +15,10 @@ export function RadioButtonFillMode(props: AnnotationRendererProps<PdfWidgetAnno
   const handleClick = useCallback(() => {
     if (isReadOnly) return;
     scope?.selectField(annotation.id);
-    if ('isChecked' in field) {
-      handleChangeField({ ...field, isChecked: true } as PdfWidgetAnnoField);
+    if (!isWidgetChecked(annotation) && annotation.exportValue) {
+      handleChangeField({ ...field, value: annotation.exportValue });
     }
-  }, [isReadOnly, scope, annotation.id, field, handleChangeField]);
+  }, [isReadOnly, scope, annotation, field, handleChangeField]);
 
   return (
     <div

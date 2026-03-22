@@ -1,5 +1,5 @@
 import { useCallback } from '@framework';
-import { PdfWidgetAnnoField, PdfWidgetAnnoObject } from '@embedpdf/models';
+import { PdfWidgetAnnoObject, isWidgetChecked } from '@embedpdf/models';
 import { AnnotationRendererProps } from '@embedpdf/plugin-annotation/@framework';
 import { useFormWidgetState } from '../../hooks/use-form-widget-state';
 import { useFormDocumentState } from '../../hooks/use-form';
@@ -15,10 +15,10 @@ export function ToggleFillMode(props: AnnotationRendererProps<PdfWidgetAnnoObjec
   const handleClick = useCallback(() => {
     if (isReadOnly) return;
     scope?.selectField(annotation.id);
-    if ('isChecked' in field) {
-      handleChangeField({ ...field, isChecked: !field.isChecked } as PdfWidgetAnnoField);
-    }
-  }, [isReadOnly, scope, annotation.id, field, handleChangeField]);
+    const checked = isWidgetChecked(annotation);
+    const newValue = checked ? 'Off' : (annotation.exportValue ?? 'Yes');
+    handleChangeField({ ...field, value: newValue });
+  }, [isReadOnly, scope, annotation, field, handleChangeField]);
 
   return (
     <div
