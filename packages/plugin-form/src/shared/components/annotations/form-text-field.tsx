@@ -2,6 +2,8 @@ import { CSSProperties, MouseEvent, useState } from '@framework';
 import {
   PdfWidgetAnnoObject,
   PDF_FORM_FIELD_TYPE,
+  PDF_FORM_FIELD_FLAG,
+  PdfTextWidgetAnnoField,
   standardFontCssProperties,
 } from '@embedpdf/models';
 import { TrackedAnnotation } from '@embedpdf/plugin-annotation';
@@ -29,6 +31,20 @@ export function FormTextField({
   const isTextField = field.type === PDF_FORM_FIELD_TYPE.TEXTFIELD;
   const value = isTextField ? field.value : '';
 
+  const isComb =
+    isTextField &&
+    !!(field.flag & PDF_FORM_FIELD_FLAG.TEXT_COMB) &&
+    !!(field as PdfTextWidgetAnnoField).maxLen;
+  const maxLen = isTextField ? (field as PdfTextWidgetAnnoField).maxLen : undefined;
+
+  const borderWidth = (object.strokeWidth ?? 1) * scale;
+  const fontStyle: CSSProperties = {
+    fontSize: (object.fontSize ?? 12) * scale,
+    ...standardFontCssProperties(object.fontFamily),
+    color: object.fontColor ?? '#000000',
+    lineHeight: 1.2,
+  };
+
   return (
     <div
       onPointerDown={!isSelected ? onClick : undefined}
@@ -38,7 +54,7 @@ export function FormTextField({
         position: 'absolute',
         inset: 0,
         background: object.color ?? 'rgba(255, 255, 255, 0.9)',
-        border: `${(object.strokeWidth ?? 1) * scale}px solid ${object.strokeColor ?? 'rgba(0, 0, 0, 0.2)'}`,
+        border: `${borderWidth}px solid ${object.strokeColor ?? 'rgba(0, 0, 0, 0.2)'}`,
         outline: isHovered || isSelected ? '1px solid rgba(66, 133, 244, 0.5)' : 'none',
         outlineOffset: -1,
         boxSizing: 'border-box',
@@ -46,24 +62,76 @@ export function FormTextField({
         cursor: isSelected ? 'move' : 'pointer',
         display: 'flex',
         alignItems: 'center',
-        padding: `0 ${2 * scale}px`,
         overflow: 'hidden',
+        ...(!isComb ? { padding: `0 ${2 * scale}px` } : {}),
         ...style,
       }}
     >
-      <span
-        style={{
-          fontSize: (object.fontSize ?? 12) * scale,
-          ...standardFontCssProperties(object.fontFamily),
-          color: object.fontColor ?? '#000000',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          lineHeight: 1.2,
-        }}
-      >
-        {value}
-      </span>
+      {isComb && maxLen ? (
+        <CombPreview
+          value={value ?? ''}
+          maxLen={maxLen}
+          scale={scale}
+          width={object.rect.size.width}
+          fontStyle={fontStyle}
+          strokeColor={object.strokeColor ?? 'rgba(0, 0, 0, 0.2)'}
+        />
+      ) : (
+        <span
+          style={{
+            ...fontStyle,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {value}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function CombPreview({
+  value,
+  maxLen,
+  scale,
+  width,
+  fontStyle,
+  strokeColor,
+}: {
+  value: string;
+  maxLen: number;
+  scale: number;
+  width: number;
+  fontStyle: CSSProperties;
+  strokeColor: string;
+}) {
+  const cellWidth = (width * scale) / maxLen;
+  const chars = value.split('');
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      {Array.from({ length: maxLen }).map((_, i) => (
+        <span
+          key={i}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: i * cellWidth,
+            width: cellWidth,
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRight: i < maxLen - 1 ? `1px solid ${strokeColor}` : 'none',
+            boxSizing: 'border-box',
+            ...fontStyle,
+          }}
+        >
+          {chars[i] || ''}
+        </span>
+      ))}
     </div>
   );
 }

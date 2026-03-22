@@ -6,6 +6,7 @@ import {
   PdfWidgetAnnoObject,
   PdfWidgetAnnoField,
   PdfWidgetAnnoOption,
+  PdfTextWidgetAnnoField,
   PDF_FORM_FIELD_TYPE,
   PDF_FORM_FIELD_FLAG,
 } from '@embedpdf/models';
@@ -232,6 +233,9 @@ function TextFieldSection({
   translate,
 }: FieldSectionProps) {
   const toggleFlag = useToggleFlag(field, updateField);
+  const textField = field as PdfTextWidgetAnnoField;
+  const maxLen = textField.maxLen ?? 0;
+  const isComb = !!(field.flag & PDF_FORM_FIELD_FLAG.TEXT_COMB);
 
   return (
     <div class="space-y-4">
@@ -261,7 +265,32 @@ function TextFieldSection({
           type="text"
           class={INPUT_CLASS}
           value={field.value ?? ''}
+          maxLength={maxLen > 0 ? maxLen : undefined}
           onBlur={(e) => updateField({ value: (e.target as HTMLInputElement).value })}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+          }}
+        />
+      </div>
+
+      <div>
+        <label class="text-fg-secondary mb-1 block text-xs font-medium">
+          {translate('form.maxLength', { fallback: 'Max Length' })}:
+        </label>
+        <input
+          type="number"
+          min="0"
+          class={INPUT_CLASS}
+          value={maxLen || ''}
+          placeholder="0 (unlimited)"
+          onBlur={(e) => {
+            const parsed = parseInt((e.target as HTMLInputElement).value, 10);
+            const newMaxLen = isNaN(parsed) || parsed <= 0 ? undefined : parsed;
+            updateField({ maxLen: newMaxLen } as Partial<PdfWidgetAnnoField>);
+            if (!newMaxLen && isComb) {
+              toggleFlag(PDF_FORM_FIELD_FLAG.TEXT_COMB, false);
+            }
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
           }}
@@ -289,6 +318,12 @@ function TextFieldSection({
             label={translate('form.multiline', { fallback: 'Multiline' })}
             checked={!!(field.flag & PDF_FORM_FIELD_FLAG.TEXT_MULTIPLINE)}
             onChange={(v) => toggleFlag(PDF_FORM_FIELD_FLAG.TEXT_MULTIPLINE, v)}
+          />
+          <Checkbox
+            label={translate('form.comb', { fallback: 'Comb' })}
+            checked={isComb}
+            disabled={maxLen <= 0}
+            onChange={(v) => toggleFlag(PDF_FORM_FIELD_FLAG.TEXT_COMB, v)}
           />
         </div>
       </div>

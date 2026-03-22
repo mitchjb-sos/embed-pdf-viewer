@@ -112,6 +112,7 @@ export const functions = {
     ['number', 'number', 'number', 'number', 'number'] as const,
     'boolean',
   ] as const,
+  EPDFAnnot_SetNumberValue: [['number', 'string', 'number'] as const, 'boolean'] as const,
   EPDFAnnot_SetOpacity: [['number', 'number'] as const, 'boolean'] as const,
   EPDFAnnot_SetOverlayText: [['number', 'number'] as const, 'boolean'] as const,
   EPDFAnnot_SetOverlayTextRepeat: [['number', 'boolean'] as const, 'boolean'] as const,

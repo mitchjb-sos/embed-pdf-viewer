@@ -54,6 +54,7 @@ import {
   PdfHighlightAnnoObject,
   PdfStampAnnoObjectContents,
   PdfWidgetAnnoField,
+  PdfTextWidgetAnnoField,
   PdfUnknownWidgetAnnoField,
   PdfTransformMatrix,
   FormFieldValue,
@@ -3270,6 +3271,12 @@ export class PdfiumNative implements IPdfiumExecutor {
     this.withWString(annotation.field.value ?? '', (valuePtr) =>
       this.pdfiumModule.EPDFAnnot_SetFormFieldValue(formHandle, annotationPtr, valuePtr),
     );
+
+    // 7. MaxLen
+    const textField = annotation.field as PdfTextWidgetAnnoField;
+    if (textField.maxLen != null && textField.maxLen > 0) {
+      this.pdfiumModule.EPDFAnnot_SetNumberValue(annotationPtr, 'MaxLen', textField.maxLen);
+    }
 
     return true;
   }

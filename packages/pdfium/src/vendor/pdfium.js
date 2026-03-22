@@ -103,6 +103,7 @@ var createPdfium = (() => {
       '_EPDFAnnot_SetLineEndings',
       '_EPDFAnnot_SetLinkedAnnot',
       '_EPDFAnnot_SetMKColor',
+      '_EPDFAnnot_SetNumberValue',
       '_EPDFAnnot_SetOpacity',
       '_EPDFAnnot_SetOverlayText',
       '_EPDFAnnot_SetOverlayTextRepeat',
@@ -6041,6 +6042,10 @@ var createPdfium = (() => {
     ));
     var _FPDFAnnot_GetNumberValue = (Module['_FPDFAnnot_GetNumberValue'] = createExportWrapper(
       'FPDFAnnot_GetNumberValue',
+      3,
+    ));
+    var _EPDFAnnot_SetNumberValue = (Module['_EPDFAnnot_SetNumberValue'] = createExportWrapper(
+      'EPDFAnnot_SetNumberValue',
       3,
     ));
     var _FPDFAnnot_SetAP = (Module['_FPDFAnnot_SetAP'] = createExportWrapper('FPDFAnnot_SetAP', 3));
