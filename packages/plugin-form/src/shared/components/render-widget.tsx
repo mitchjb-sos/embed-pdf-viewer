@@ -27,48 +27,48 @@ export function RenderWidget({
   const { width, height } = annotation.rect.size;
 
   useEffect(() => {
-    if (formProvides) {
-      const task = formProvides.renderWidget({
-        pageIndex,
-        annotation,
-        options: {
-          scaleFactor,
-          dpr: window.devicePixelRatio,
-        },
-      });
-      task.wait((blob) => {
-        const url = URL.createObjectURL(blob);
-        setImageUrl(url);
-        urlRef.current = url;
-      }, ignore);
+    if (!formProvides) return;
 
-      return () => {
-        if (urlRef.current) {
-          URL.revokeObjectURL(urlRef.current);
-          urlRef.current = null;
-        } else {
-          task.abort({
-            code: PdfErrorCode.Cancelled,
-            message: 'canceled render task',
-          });
-        }
-      };
-    }
+    const task = formProvides.renderWidget({
+      pageIndex,
+      annotation,
+      options: {
+        scaleFactor,
+        dpr: window.devicePixelRatio,
+      },
+    });
+
+    task.wait((blob) => {
+      const url = URL.createObjectURL(blob);
+      if (urlRef.current) {
+        URL.revokeObjectURL(urlRef.current);
+      }
+      urlRef.current = url;
+      setImageUrl(url);
+    }, ignore);
+
+    return () => {
+      task.abort({
+        code: PdfErrorCode.Cancelled,
+        message: 'canceled render task',
+      });
+    };
   }, [pageIndex, scaleFactor, formProvides, annotation.id, width, height, renderKey]);
 
-  const handleImageLoad = () => {
-    if (urlRef.current) {
-      URL.revokeObjectURL(urlRef.current);
-      urlRef.current = null;
-    }
-  };
+  useEffect(() => {
+    return () => {
+      if (urlRef.current) {
+        URL.revokeObjectURL(urlRef.current);
+        urlRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <Fragment>
       {imageUrl && (
         <img
           src={imageUrl}
-          onLoad={handleImageLoad}
           {...props}
           style={{
             width: '100%',

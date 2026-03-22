@@ -1030,7 +1030,7 @@ export const commands: Record<string, Command<State>> = {
     categories: ['form', 'form-navigation'],
     action: ({ registry, documentId }) => {
       const form = registry.getPlugin<FormPlugin>(FormPlugin.id)?.provides();
-      form?.forDocument(documentId).selectNextField();
+      form?.forDocument(documentId).selectNextField({ scroll: true });
     },
     disabled: ({ registry, documentId }) => {
       const scope = registry
@@ -1048,7 +1048,7 @@ export const commands: Record<string, Command<State>> = {
     categories: ['form', 'form-navigation'],
     action: ({ registry, documentId }) => {
       const form = registry.getPlugin<FormPlugin>(FormPlugin.id)?.provides();
-      form?.forDocument(documentId).selectPreviousField();
+      form?.forDocument(documentId).selectPreviousField({ scroll: true });
     },
     disabled: ({ registry, documentId }) => {
       const scope = registry

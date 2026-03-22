@@ -51,15 +51,13 @@ export function TextFillMode(props: AnnotationRendererProps<PdfWidgetAnnoObject>
         pointerEvents: 'auto',
       }}
     >
-      {!editing && (
-        <RenderWidget
-          pageIndex={pageIndex}
-          annotation={annotation}
-          scaleFactor={scale}
-          renderKey={renderKey}
-          style={{ pointerEvents: 'none' }}
-        />
-      )}
+      <RenderWidget
+        pageIndex={pageIndex}
+        annotation={annotation}
+        scaleFactor={scale}
+        renderKey={renderKey}
+        style={{ pointerEvents: 'none' }}
+      />
       {editing && (
         <TextField
           annotation={annotation as TextFieldProps['annotation']}

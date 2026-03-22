@@ -124,11 +124,13 @@ export class FormPlugin extends BasePlugin<
       shareField: (annotationId, targetAnnotationId, documentId?) =>
         this.shareFieldMethod(annotationId, targetAnnotationId, documentId),
       renderWidget: (options, documentId?) => this.renderWidget(options, documentId),
-      selectField: (annotationId, documentId?) => this.selectFieldMethod(annotationId, documentId),
+      selectField: (annotationId, options?, documentId?) =>
+        this.selectFieldMethod(annotationId, options, documentId),
       deselectField: (documentId?) => this.deselectFieldMethod(documentId),
       getSelectedFieldId: (documentId?) => this.getSelectedFieldId(documentId),
-      selectNextField: (documentId?) => this.selectNextFieldMethod(documentId),
-      selectPreviousField: (documentId?) => this.selectPreviousFieldMethod(documentId),
+      selectNextField: (options?, documentId?) => this.selectNextFieldMethod(options, documentId),
+      selectPreviousField: (options?, documentId?) =>
+        this.selectPreviousFieldMethod(options, documentId),
       activateField: (documentId?) => this.activateFieldMethod(documentId),
       getState: (documentId?) => this.getDocumentState(documentId),
       getFieldGroup: (annotationId, documentId?) => this.getFieldGroup(annotationId, documentId),
@@ -149,11 +151,12 @@ export class FormPlugin extends BasePlugin<
       shareField: (annotationId, targetAnnotationId) =>
         this.shareFieldMethod(annotationId, targetAnnotationId, documentId),
       renderWidget: (options) => this.renderWidget(options, documentId),
-      selectField: (annotationId) => this.selectFieldMethod(annotationId, documentId),
+      selectField: (annotationId, options?) =>
+        this.selectFieldMethod(annotationId, options, documentId),
       deselectField: () => this.deselectFieldMethod(documentId),
       getSelectedFieldId: () => this.getSelectedFieldId(documentId),
-      selectNextField: () => this.selectNextFieldMethod(documentId),
-      selectPreviousField: () => this.selectPreviousFieldMethod(documentId),
+      selectNextField: (options?) => this.selectNextFieldMethod(options, documentId),
+      selectPreviousField: (options?) => this.selectPreviousFieldMethod(options, documentId),
       activateField: () => this.activateFieldMethod(documentId),
       getState: () => this.getDocumentState(documentId),
       getFieldGroup: (annotationId) => this.getFieldGroup(annotationId, documentId),
@@ -709,10 +712,16 @@ export class FormPlugin extends BasePlugin<
     return resultTask;
   }
 
-  private selectFieldMethod(annotationId: string, documentId?: string): void {
+  private selectFieldMethod(
+    annotationId: string,
+    options?: { scroll?: boolean },
+    documentId?: string,
+  ): void {
     const docId = documentId ?? this.getActiveDocumentId();
     this.dispatch(selectFieldAction(docId, annotationId));
-    this.scrollToField(annotationId, docId);
+    if (options?.scroll) {
+      this.scrollToField(annotationId, docId);
+    }
   }
 
   private deselectFieldMethod(documentId?: string): void {
@@ -724,7 +733,7 @@ export class FormPlugin extends BasePlugin<
     return this.getDocumentState(documentId).selectedFieldId;
   }
 
-  private selectNextFieldMethod(documentId?: string): void {
+  private selectNextFieldMethod(options?: { scroll?: boolean }, documentId?: string): void {
     const docId = documentId ?? this.getActiveDocumentId();
     const ordered = this.orderedFieldIndex.get(docId);
     if (!ordered || ordered.length === 0) return;
@@ -738,10 +747,12 @@ export class FormPlugin extends BasePlugin<
 
     const next = ordered[nextIndex];
     this.dispatch(selectFieldAction(docId, next.annotationId));
-    this.scrollToField(next.annotationId, docId);
+    if (options?.scroll) {
+      this.scrollToField(next.annotationId, docId);
+    }
   }
 
-  private selectPreviousFieldMethod(documentId?: string): void {
+  private selectPreviousFieldMethod(options?: { scroll?: boolean }, documentId?: string): void {
     const docId = documentId ?? this.getActiveDocumentId();
     const ordered = this.orderedFieldIndex.get(docId);
     if (!ordered || ordered.length === 0) return;
@@ -758,7 +769,9 @@ export class FormPlugin extends BasePlugin<
 
     const prev = ordered[prevIndex];
     this.dispatch(selectFieldAction(docId, prev.annotationId));
-    this.scrollToField(prev.annotationId, docId);
+    if (options?.scroll) {
+      this.scrollToField(prev.annotationId, docId);
+    }
   }
 
   private activateFieldMethod(documentId?: string): void {

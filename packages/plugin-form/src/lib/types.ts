@@ -51,11 +51,11 @@ export interface FormScope {
   renameField(annotationId: string, name: string): PdfTask<boolean>;
   shareField(annotationId: string, targetAnnotationId: string): PdfTask<boolean>;
   renderWidget(options: RenderWidgetOptions): Task<Blob, PdfErrorReason>;
-  selectField(annotationId: string): void;
+  selectField(annotationId: string, options?: { scroll?: boolean }): void;
   deselectField(): void;
   getSelectedFieldId(): string | null;
-  selectNextField(): void;
-  selectPreviousField(): void;
+  selectNextField(options?: { scroll?: boolean }): void;
+  selectPreviousField(options?: { scroll?: boolean }): void;
   activateField(): void;
   getState(): FormDocumentState;
   /** Get all widget entries sharing the same logical field (including the given annotation) */
@@ -81,11 +81,11 @@ export interface FormCapability {
     documentId?: string,
   ): PdfTask<boolean>;
   renderWidget(options: RenderWidgetOptions, documentId?: string): Task<Blob, PdfErrorReason>;
-  selectField(annotationId: string, documentId?: string): void;
+  selectField(annotationId: string, options?: { scroll?: boolean }, documentId?: string): void;
   deselectField(documentId?: string): void;
   getSelectedFieldId(documentId?: string): string | null;
-  selectNextField(documentId?: string): void;
-  selectPreviousField(documentId?: string): void;
+  selectNextField(options?: { scroll?: boolean }, documentId?: string): void;
+  selectPreviousField(options?: { scroll?: boolean }, documentId?: string): void;
   activateField(documentId?: string): void;
   getState(documentId?: string): FormDocumentState;
   /** Get all widget entries sharing the same logical field (including the given annotation) */

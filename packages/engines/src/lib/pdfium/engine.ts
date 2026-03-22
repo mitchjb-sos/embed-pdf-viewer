@@ -8852,8 +8852,7 @@ export class PdfiumNative implements IPdfiumExecutor {
     const unrotated = !!options?.unrotated && !!annotation.unrotatedRect;
     const renderRect = unrotated ? annotation.unrotatedRect! : annotation.rect;
 
-    const rect = toIntRect(renderRect);
-    const devRect = toIntRect(transformRect(page.size, rect, rotation, finalScale));
+    const devRect = toIntRect(transformRect(page.size, renderRect, rotation, finalScale));
 
     const wDev = Math.max(1, devRect.size.width);
     const hDev = Math.max(1, devRect.size.height);
@@ -8872,12 +8871,7 @@ export class PdfiumNative implements IPdfiumExecutor {
     this.pdfiumModule.FPDFBitmap_FillRect(bitmapPtr, 0, 0, wDev, hDev, 0x00000000);
 
     // 4) user matrix (no Y-flip; includes -origin translate)
-    const M = buildUserToDeviceMatrix(
-      rect, // {origin:{L,B}, size:{W,H}}
-      rotation,
-      wDev,
-      hDev,
-    );
+    const M = buildUserToDeviceMatrix(renderRect, rotation, wDev, hDev);
     const mPtr = this.memoryManager.malloc(6 * 4);
     const mView = new Float32Array(this.pdfiumModule.pdfium.HEAPF32.buffer, mPtr, 6);
     mView.set([M.a, M.b, M.c, M.d, M.e, M.f]);
@@ -9079,8 +9073,7 @@ export class PdfiumNative implements IPdfiumExecutor {
     const pageRect = this.readPageAnnoRect(annotPtr);
     const annotRect = this.convertPageRectToDeviceRect(doc, page, pageRect);
 
-    const rect = toIntRect(annotRect);
-    const devRect = toIntRect(transformRect(page.size, rect, rotation, finalScale));
+    const devRect = toIntRect(transformRect(page.size, annotRect, rotation, finalScale));
     const wDev = Math.max(1, devRect.size.width);
     const hDev = Math.max(1, devRect.size.height);
     const stride = wDev * 4;
@@ -9096,7 +9089,7 @@ export class PdfiumNative implements IPdfiumExecutor {
     );
     this.pdfiumModule.FPDFBitmap_FillRect(bitmapPtr, 0, 0, wDev, hDev, 0x00000000);
 
-    const M = buildUserToDeviceMatrix(rect, rotation, wDev, hDev);
+    const M = buildUserToDeviceMatrix(annotRect, rotation, wDev, hDev);
     const mPtr = this.memoryManager.malloc(6 * 4);
     const mView = new Float32Array(this.pdfiumModule.pdfium.HEAPF32.buffer, mPtr, 6);
     mView.set([M.a, M.b, M.c, M.d, M.e, M.f]);
