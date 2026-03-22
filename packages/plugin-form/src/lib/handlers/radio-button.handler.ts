@@ -39,13 +39,16 @@ export const radioButtonHandlerFactory: HandlerFactory<PdfWidgetAnnoObject> = {
     };
 
     const buildRect = (start: { x: number; y: number }, end: { x: number; y: number }): Rect => {
-      const minX = Math.min(start.x, end.x);
-      const minY = Math.min(start.y, end.y);
-      const width = Math.abs(start.x - end.x);
-      const height = Math.abs(start.y - end.y);
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const side = Math.max(Math.abs(dx), Math.abs(dy));
+      const sx = dx < 0 ? -side : side;
+      const sy = dy < 0 ? -side : side;
+      const minX = Math.min(start.x, start.x + sx);
+      const minY = Math.min(start.y, start.y + sy);
       return {
         origin: { x: minX, y: minY },
-        size: { width, height },
+        size: { width: side, height: side },
       };
     };
 

@@ -121,6 +121,7 @@ export const formRadioButtonTool = defineAnnotationTool({
     isDraggable: true,
     isResizable: true,
     isRotatable: false,
+    lockAspectRatio: true,
     isGroupDraggable: false,
     isGroupResizable: false,
     isGroupRotatable: false,
