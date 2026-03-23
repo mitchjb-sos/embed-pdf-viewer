@@ -1,4 +1,9 @@
-import { BasePlugin, createBehaviorEmitter, PluginRegistry, Listener } from '@embedpdf/core';
+import {
+  BasePlugin,
+  createBehaviorEmitter,
+  createScopedEmitter,
+  PluginRegistry,
+} from '@embedpdf/core';
 import {
   ignore,
   PdfAnnotationObject,
@@ -10,7 +15,6 @@ import {
   PdfErrorCode,
   AnnotationCreateContext,
   uuidV4,
-  PdfAnnotationSubtype,
   PdfPermissionFlag,
   Position,
   Rect,
@@ -18,6 +22,10 @@ import {
   Rotation,
   AnnotationAppearanceMap,
   PdfRenderPageAnnotationOptions,
+  PdfLinkTarget,
+  PdfActionType,
+  PdfZoomMode,
+  PdfDestinationObject,
 } from '@embedpdf/models';
 import {
   AnnotationCapability,
@@ -51,6 +59,8 @@ import {
   UnifiedRotateEvent,
   UnifiedRotateParticipant,
   LockMode,
+  NavigateTargetResult,
+  NavigateEvent,
 } from './types';
 import {
   setAnnotations,
@@ -81,6 +91,7 @@ import {
 } from '@embedpdf/plugin-interaction-manager';
 import { SelectionPlugin, SelectionCapability } from '@embedpdf/plugin-selection';
 import { HistoryPlugin, HistoryCapability, Command } from '@embedpdf/plugin-history';
+import { ScrollPlugin, ScrollCapability } from '@embedpdf/plugin-scroll';
 import {
   getAnnotationByUid,
   getSelectedAnnotation,
@@ -97,22 +108,10 @@ import { AnnotationTool, AnnotationToolMap, ToolById, ToolId } from './tools/typ
 import {
   PreviewState,
   HandlerContext,
-  HandlerFactory,
   HandlerServices,
   SelectionHandlerContext,
 } from './handlers/types';
-import {
-  circleHandlerFactory,
-  squareHandlerFactory,
-  stampHandlerFactory,
-  polygonHandlerFactory,
-  polylineHandlerFactory,
-  lineHandlerFactory,
-  inkHandlerFactory,
-  freeTextHandlerFactory,
-  textHandlerFactory,
-  textMarkupSelectionHandler,
-} from './handlers';
+import { textMarkupSelectionHandler } from './handlers';
 import {
   rectsIntersect,
   isSidebarAnnotation,
@@ -139,10 +138,15 @@ export class AnnotationPlugin extends BasePlugin<
   private readonly ANNOTATION_HISTORY_TOPIC = 'annotations';
 
   public readonly config: AnnotationPluginConfig;
-  private readonly state$ = createBehaviorEmitter<AnnotationStateChangeEvent>();
+  private readonly state$ = createScopedEmitter<
+    AnnotationDocumentState,
+    AnnotationStateChangeEvent,
+    string
+  >((documentId, state) => ({ documentId, state }));
   private readonly interactionManager: InteractionManagerCapability | null;
   private readonly selection: SelectionCapability | null;
   private readonly history: HistoryCapability | null;
+  private readonly scroll: ScrollCapability | null;
 
   // Per-document state
   private pendingContexts = new Map<string, Map<string, unknown>>();
@@ -150,9 +154,15 @@ export class AnnotationPlugin extends BasePlugin<
   private importQueue = new Map<string, ImportAnnotationItem<PdfAnnotationObject>[]>();
   private commitInProgress = new Map<string, boolean>(); // Guard against concurrent commits
 
-  private handlerFactories = new Map<PdfAnnotationSubtype, HandlerFactory<any>>();
-  private readonly activeTool$ = createBehaviorEmitter<AnnotationActiveToolChangeEvent>();
-  private readonly events$ = createBehaviorEmitter<AnnotationEvent>();
+  private readonly activeTool$ = createScopedEmitter<
+    AnnotationTool | null,
+    AnnotationActiveToolChangeEvent,
+    string
+  >((documentId, tool) => ({ documentId, tool }));
+  private readonly events$ = createScopedEmitter<AnnotationEvent, AnnotationEvent, string>(
+    (_, event) => event,
+    { cache: false },
+  );
   private readonly toolsChange$ = createBehaviorEmitter<AnnotationToolsChangeEvent>();
 
   // Appearance stream cache: documentId -> pageIndex -> AnnotationAppearanceMap<Blob>
@@ -170,16 +180,21 @@ export class AnnotationPlugin extends BasePlugin<
   private readonly unifiedRotateStates = new Map<string, UnifiedRotateState>();
   private readonly unifiedRotate$ = createBehaviorEmitter<UnifiedRotateEvent>();
 
+  // Link navigation events
+  private readonly navigate$ = createScopedEmitter<NavigateEvent, NavigateEvent, string>(
+    (_, event) => event,
+    { cache: false },
+  );
+
   constructor(id: string, registry: PluginRegistry, config: AnnotationPluginConfig) {
     super(id, registry);
     this.config = config;
 
     this.selection = registry.getPlugin<SelectionPlugin>('selection')?.provides() ?? null;
     this.history = registry.getPlugin<HistoryPlugin>('history')?.provides() ?? null;
+    this.scroll = registry.getPlugin<ScrollPlugin>('scroll')?.provides() ?? null;
     this.interactionManager =
       registry.getPlugin<InteractionManagerPlugin>('interaction-manager')?.provides() ?? null;
-
-    this.registerHandlerFactories();
   }
 
   // ─────────────────────────────────────────────────────────
@@ -233,23 +248,17 @@ export class AnnotationPlugin extends BasePlugin<
     this.importQueue.delete(documentId);
     this.appearanceCache.delete(documentId);
 
+    // Cleanup scoped emitter caches and listeners
+    this.state$.clearScope(documentId);
+    this.activeTool$.clearScope(documentId);
+    this.events$.clearScope(documentId);
+    this.navigate$.clearScope(documentId);
+
     this.logger.debug(
       'AnnotationPlugin',
       'DocumentClosed',
       `Cleaned up annotation state for document: ${documentId}`,
     );
-  }
-
-  private registerHandlerFactories() {
-    this.handlerFactories.set(PdfAnnotationSubtype.CIRCLE, circleHandlerFactory);
-    this.handlerFactories.set(PdfAnnotationSubtype.SQUARE, squareHandlerFactory);
-    this.handlerFactories.set(PdfAnnotationSubtype.STAMP, stampHandlerFactory);
-    this.handlerFactories.set(PdfAnnotationSubtype.POLYGON, polygonHandlerFactory);
-    this.handlerFactories.set(PdfAnnotationSubtype.POLYLINE, polylineHandlerFactory);
-    this.handlerFactories.set(PdfAnnotationSubtype.LINE, lineHandlerFactory);
-    this.handlerFactories.set(PdfAnnotationSubtype.INK, inkHandlerFactory);
-    this.handlerFactories.set(PdfAnnotationSubtype.FREETEXT, freeTextHandlerFactory);
-    this.handlerFactories.set(PdfAnnotationSubtype.TEXT, textHandlerFactory);
   }
 
   async initialize(): Promise<void> {
@@ -418,6 +427,9 @@ export class AnnotationPlugin extends BasePlugin<
       syncAnnotationObject: (id, patch, documentId) =>
         this.syncAnnotationObject(id, patch, documentId),
 
+      // Link navigation
+      navigateTarget: (target, documentId) => this.navigateTargetMethod(target, documentId),
+
       // Document-scoped operations
       forDocument: (documentId) => this.createAnnotationScope(documentId),
 
@@ -438,10 +450,11 @@ export class AnnotationPlugin extends BasePlugin<
       transformAnnotation: (annotation, options) => this.transformAnnotation(annotation, options),
 
       // Events
-      onStateChange: this.state$.on,
-      onActiveToolChange: this.activeTool$.on,
-      onAnnotationEvent: this.events$.on,
+      onStateChange: this.state$.onGlobal,
+      onActiveToolChange: this.activeTool$.onGlobal,
+      onAnnotationEvent: this.events$.onGlobal,
       onToolsChange: this.toolsChange$.on,
+      onNavigate: this.navigate$.onGlobal,
     };
   }
 
@@ -497,18 +510,11 @@ export class AnnotationPlugin extends BasePlugin<
       isCategoryLocked: (category) => this.isCategoryLockedMethod(category, documentId),
       isToolLocked: (toolId) => this.isToolLockedMethod(toolId, documentId),
       syncAnnotationObject: (id, patch) => this.syncAnnotationObject(id, patch, documentId),
-      onStateChange: (listener: Listener<AnnotationDocumentState>) =>
-        this.state$.on((event) => {
-          if (event.documentId === documentId) listener(event.state);
-        }),
-      onAnnotationEvent: (listener: Listener<AnnotationEvent>) =>
-        this.events$.on((event) => {
-          if (event.documentId === documentId) listener(event);
-        }),
-      onActiveToolChange: (listener: Listener<AnnotationTool | null>) =>
-        this.activeTool$.on((event) => {
-          if (event.documentId === documentId) listener(event.tool);
-        }),
+      navigateTarget: (target) => this.navigateTargetMethod(target, documentId),
+      onStateChange: this.state$.forScope(documentId),
+      onAnnotationEvent: this.events$.forScope(documentId),
+      onActiveToolChange: this.activeTool$.forScope(documentId),
+      onNavigate: this.navigate$.forScope(documentId),
     };
   }
 
@@ -519,17 +525,11 @@ export class AnnotationPlugin extends BasePlugin<
       const nextDoc = next.documents[documentId];
 
       if (prevDoc !== nextDoc) {
-        this.state$.emit({
-          documentId,
-          state: nextDoc,
-        });
+        this.state$.emit(documentId, nextDoc);
 
         // Emit active tool change if it changed for this document
         if (prevDoc && prevDoc.activeToolId !== nextDoc.activeToolId) {
-          this.activeTool$.emit({
-            documentId,
-            tool: this.getActiveTool(documentId),
-          });
+          this.activeTool$.emit(documentId, this.getActiveTool(documentId));
         }
 
         // Update page activity when selection changes
@@ -542,10 +542,7 @@ export class AnnotationPlugin extends BasePlugin<
     // If the tools array itself changes, emit active tool for all documents and tools change event
     if (prev.tools !== next.tools) {
       for (const documentId in next.documents) {
-        this.activeTool$.emit({
-          documentId,
-          tool: this.getActiveTool(documentId),
-        });
+        this.activeTool$.emit(documentId, this.getActiveTool(documentId));
       }
 
       // Emit tools change event for UI components that only care about tool defaults
@@ -594,9 +591,7 @@ export class AnnotationPlugin extends BasePlugin<
       4) as Rotation;
 
     for (const tool of this.state.tools) {
-      const factory =
-        tool.pointerHandler ??
-        (tool.defaults.type ? this.handlerFactories.get(tool.defaults.type) : undefined);
+      const factory = tool.pointerHandler;
       if (!factory) continue;
 
       const context: HandlerContext<PdfAnnotationObject> = {
@@ -659,7 +654,7 @@ export class AnnotationPlugin extends BasePlugin<
         this.processImportQueue(documentId);
       }
 
-      this.events$.emit({
+      this.events$.emit(documentId, {
         type: 'loaded',
         documentId,
         total: Object.values(annotations).reduce(
@@ -877,7 +872,7 @@ export class AnnotationPlugin extends BasePlugin<
     const execute = () => {
       this.dispatch(createAnnotation(docId, pageIndex, newAnnotation));
       if (ctx) contexts.set(id, ctx);
-      this.events$.emit({
+      this.events$.emit(docId, {
         type: 'create',
         documentId: docId,
         annotation: newAnnotation,
@@ -899,7 +894,7 @@ export class AnnotationPlugin extends BasePlugin<
         contexts.delete(id);
         this.dispatch(deselectAnnotation(docId));
         this.dispatch(deleteAnnotation(docId, pageIndex, id));
-        this.events$.emit({
+        this.events$.emit(docId, {
           type: 'delete',
           documentId: docId,
           annotation: newAnnotation,
@@ -949,7 +944,7 @@ export class AnnotationPlugin extends BasePlugin<
 
     const execute = () => {
       this.dispatch(patchAnnotation(docId, pageIndex, id, finalPatch));
-      this.events$.emit({
+      this.events$.emit(docId, {
         type: 'update',
         documentId: docId,
         annotation: originalObject,
@@ -973,7 +968,7 @@ export class AnnotationPlugin extends BasePlugin<
       execute,
       undo: () => {
         this.dispatch(patchAnnotation(docId, pageIndex, id, originalPatch));
-        this.events$.emit({
+        this.events$.emit(docId, {
           type: 'update',
           documentId: docId,
           annotation: originalObject,
@@ -1017,7 +1012,7 @@ export class AnnotationPlugin extends BasePlugin<
         const childObj = docState.byUid[child.id]?.object;
         if (childObj) {
           this.dispatch(deleteAnnotation(docId, child.pageIndex, child.id));
-          this.events$.emit({
+          this.events$.emit(docId, {
             type: 'delete',
             documentId: docId,
             annotation: childObj,
@@ -1029,7 +1024,7 @@ export class AnnotationPlugin extends BasePlugin<
       // Then delete the parent
       this.dispatch(deselectAnnotation(docId));
       this.dispatch(deleteAnnotation(docId, pageIndex, id));
-      this.events$.emit({
+      this.events$.emit(docId, {
         type: 'delete',
         documentId: docId,
         annotation: originalAnnotation,
@@ -1048,7 +1043,7 @@ export class AnnotationPlugin extends BasePlugin<
       undo: () => {
         // Restore parent first
         this.dispatch(createAnnotation(docId, pageIndex, originalAnnotation));
-        this.events$.emit({
+        this.events$.emit(docId, {
           type: 'create',
           documentId: docId,
           annotation: originalAnnotation,
@@ -1058,7 +1053,7 @@ export class AnnotationPlugin extends BasePlugin<
         // Then restore children
         for (const childObj of childAnnotations) {
           this.dispatch(createAnnotation(docId, childObj.pageIndex, childObj));
-          this.events$.emit({
+          this.events$.emit(docId, {
             type: 'create',
             documentId: docId,
             annotation: childObj,
@@ -2266,7 +2261,7 @@ export class AnnotationPlugin extends BasePlugin<
     const execute = () => {
       for (const { pageIndex, id, patch, originalObject } of patchData) {
         this.dispatch(patchAnnotation(docId, pageIndex, id, patch));
-        this.events$.emit({
+        this.events$.emit(docId, {
           type: 'update',
           documentId: docId,
           annotation: originalObject,
@@ -2300,7 +2295,7 @@ export class AnnotationPlugin extends BasePlugin<
       undo: () => {
         for (const { pageIndex, id, originalPatch, originalObject } of undoData) {
           this.dispatch(patchAnnotation(docId, pageIndex, id, originalPatch));
-          this.events$.emit({
+          this.events$.emit(docId, {
             type: 'update',
             documentId: docId,
             annotation: originalObject,
@@ -2347,7 +2342,7 @@ export class AnnotationPlugin extends BasePlugin<
     const execute = () => {
       for (const { pageIndex, id, patch, originalObject } of moveData) {
         this.dispatch(moveAnnotation(docId, pageIndex, id, patch));
-        this.events$.emit({
+        this.events$.emit(docId, {
           type: 'update',
           documentId: docId,
           annotation: originalObject,
@@ -2382,7 +2377,7 @@ export class AnnotationPlugin extends BasePlugin<
         // Undo of a move is also a move (AP preserved in both directions)
         for (const { pageIndex, id, originalPatch, originalObject } of undoData) {
           this.dispatch(moveAnnotation(docId, pageIndex, id, originalPatch));
-          this.events$.emit({
+          this.events$.emit(docId, {
             type: 'update',
             documentId: docId,
             annotation: originalObject,
@@ -2531,6 +2526,68 @@ export class AnnotationPlugin extends BasePlugin<
   ): void {
     const docId = documentId ?? this.getActiveDocumentId();
     this.dispatch(syncAnnotationObjectAction(docId, id, patch));
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Link Target Navigation
+  // ─────────────────────────────────────────────────────────
+
+  private navigateTargetMethod(
+    target: PdfLinkTarget,
+    documentId?: string,
+  ): Task<NavigateTargetResult, PdfErrorReason> {
+    const docId = documentId ?? this.getActiveDocumentId();
+
+    const emit = (result: NavigateTargetResult) => {
+      this.navigate$.emit(docId, { documentId: docId, result, target });
+      return PdfTaskHelper.resolve<NavigateTargetResult>(result);
+    };
+
+    let destination: PdfDestinationObject | undefined;
+
+    if (target.type === 'destination') {
+      destination = target.destination;
+    } else if (target.type === 'action') {
+      const action = target.action;
+      if (action.type === PdfActionType.Goto || action.type === PdfActionType.RemoteGoto) {
+        destination = action.destination;
+      } else if (action.type === PdfActionType.URI) {
+        return emit({ outcome: 'uri', uri: action.uri });
+      } else {
+        return emit({ outcome: 'unsupported' });
+      }
+    }
+
+    if (!destination) {
+      return emit({ outcome: 'unsupported' });
+    }
+
+    if (!this.scroll) {
+      return emit({ outcome: 'destination', destination });
+    }
+
+    const scrollScope = this.scroll.forDocument(docId);
+
+    if (destination.zoom.mode === PdfZoomMode.XYZ) {
+      const coreDoc = this.getCoreDocument(docId);
+      const page = coreDoc?.document?.pages.find((p) => p.index === destination.pageIndex);
+
+      scrollScope.scrollToPage({
+        pageNumber: destination.pageIndex + 1,
+        pageCoordinates:
+          page && destination.zoom.params
+            ? { x: destination.zoom.params.x, y: page.size.height - destination.zoom.params.y }
+            : undefined,
+        behavior: 'smooth',
+      });
+    } else {
+      scrollScope.scrollToPage({
+        pageNumber: destination.pageIndex + 1,
+        behavior: 'smooth',
+      });
+    }
+
+    return emit({ outcome: 'navigated' });
   }
 
   /**
@@ -2687,7 +2744,7 @@ export class AnnotationPlugin extends BasePlugin<
 
       switch (op.type) {
         case 'create':
-          this.events$.emit({
+          this.events$.emit(docId, {
             type: 'create',
             documentId: docId,
             annotation: op.ta.object,
@@ -2699,7 +2756,7 @@ export class AnnotationPlugin extends BasePlugin<
           break;
 
         case 'update':
-          this.events$.emit({
+          this.events$.emit(docId, {
             type: 'update',
             documentId: docId,
             annotation: op.ta.object,
@@ -2711,7 +2768,7 @@ export class AnnotationPlugin extends BasePlugin<
 
         case 'delete':
           this.dispatch(purgeAnnotation(docId, op.ta.object.pageIndex, op.uid));
-          this.events$.emit({
+          this.events$.emit(docId, {
             type: 'delete',
             documentId: docId,
             annotation: op.ta.object,

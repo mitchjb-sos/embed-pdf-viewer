@@ -9,7 +9,20 @@ import {
 } from '@embedpdf/models';
 import { AnnoOf } from '../helpers';
 import { AnnotationTool, ToolMapFromList } from './types';
-import { insertTextSelectionHandler, replaceTextSelectionHandler } from '../handlers';
+import {
+  insertTextSelectionHandler,
+  replaceTextSelectionHandler,
+  inkHandlerFactory,
+  circleHandlerFactory,
+  squareHandlerFactory,
+  lineHandlerFactory,
+  polylineHandlerFactory,
+  polygonHandlerFactory,
+  textHandlerFactory,
+  freeTextHandlerFactory,
+  stampHandlerFactory,
+  linkHandlerFactory,
+} from '../handlers';
 import {
   patchInk,
   patchLine,
@@ -200,6 +213,7 @@ const inkTools = [
       commitDelay: 800,
     },
     transform: patchInk,
+    pointerHandler: inkHandlerFactory,
   },
   {
     id: 'inkHighlighter' as const,
@@ -235,6 +249,7 @@ const inkTools = [
       smartLineThreshold: 0.15,
     },
     transform: patchInk,
+    pointerHandler: inkHandlerFactory,
   },
 ] satisfies readonly AnnotationTool<AnnoOf<PdfAnnotationSubtype.INK>>[];
 
@@ -270,6 +285,7 @@ const circleTools = [
       defaultSize: { width: 100, height: 100 },
     },
     transform: patchCircle,
+    pointerHandler: circleHandlerFactory,
   },
 ] satisfies readonly AnnotationTool<AnnoOf<PdfAnnotationSubtype.CIRCLE>>[];
 
@@ -305,6 +321,7 @@ const squareTools = [
       defaultSize: { width: 100, height: 100 },
     },
     transform: patchSquare,
+    pointerHandler: squareHandlerFactory,
   },
 ] satisfies readonly AnnotationTool<AnnoOf<PdfAnnotationSubtype.SQUARE>>[];
 
@@ -341,6 +358,7 @@ const lineTools = [
       defaultAngle: 0,
     },
     transform: patchLine,
+    pointerHandler: lineHandlerFactory,
   },
   {
     id: 'lineArrow' as const,
@@ -379,6 +397,7 @@ const lineTools = [
       defaultAngle: 0,
     },
     transform: patchLine,
+    pointerHandler: lineHandlerFactory,
   },
 ] satisfies readonly AnnotationTool<AnnoOf<PdfAnnotationSubtype.LINE>>[];
 
@@ -410,6 +429,7 @@ const polylineTools = [
       strokeColor: '#E44234',
     },
     transform: patchPolyline,
+    pointerHandler: polylineHandlerFactory,
   },
 ] satisfies readonly AnnotationTool<AnnoOf<PdfAnnotationSubtype.POLYLINE>>[];
 
@@ -441,6 +461,7 @@ const polygonTools = [
       strokeColor: '#E44234',
     },
     transform: patchPolygon,
+    pointerHandler: polygonHandlerFactory,
   },
 ] satisfies readonly AnnotationTool<AnnoOf<PdfAnnotationSubtype.POLYGON>>[];
 
@@ -466,6 +487,7 @@ const textCommentTools = [
     behavior: {
       selectAfterCreate: true,
     },
+    pointerHandler: textHandlerFactory,
   },
 ] satisfies readonly AnnotationTool<AnnoOf<PdfAnnotationSubtype.TEXT>>[];
 
@@ -511,6 +533,7 @@ const freeTextTools = [
       selectAfterCreate: true,
     },
     transform: patchFreeText,
+    pointerHandler: freeTextHandlerFactory,
   },
 ] satisfies readonly AnnotationTool<AnnoOf<PdfAnnotationSubtype.FREETEXT>>[];
 
@@ -538,8 +561,37 @@ const stampTools = [
       useAppearanceStream: false,
     },
     transform: patchStamp,
+    pointerHandler: stampHandlerFactory,
   },
 ] satisfies readonly AnnotationTool<AnnoOf<PdfAnnotationSubtype.STAMP>>[];
+
+const linkTools = [
+  {
+    id: 'link' as const,
+    name: 'Link',
+    labelKey: 'annotation.link',
+    categories: ['annotation', 'markup'],
+    matchScore: (a) => (a.type === PdfAnnotationSubtype.LINK && !a.inReplyToId ? 1 : 0),
+    interaction: {
+      exclusive: false,
+      cursor: 'crosshair',
+      isDraggable: true,
+      isResizable: true,
+      isRotatable: false,
+    },
+    defaults: {
+      type: PdfAnnotationSubtype.LINK,
+      strokeColor: '#0000FF',
+      strokeWidth: 2,
+      strokeStyle: PdfAnnotationBorderStyle.UNDERLINE,
+    },
+    clickBehavior: {
+      enabled: true,
+      defaultSize: { width: 100, height: 20 },
+    },
+    pointerHandler: linkHandlerFactory,
+  },
+] satisfies readonly AnnotationTool<AnnoOf<PdfAnnotationSubtype.LINK>>[];
 
 export const defaultTools = [
   ...textMarkupTools,
@@ -554,6 +606,7 @@ export const defaultTools = [
   ...textCommentTools,
   ...freeTextTools,
   ...stampTools,
+  ...linkTools,
 ];
 
 export type DefaultAnnotationTool = (typeof defaultTools)[number];

@@ -3,7 +3,9 @@ import {
   AnnotationCreateContext,
   AnnotationAppearanceMap,
   PdfAnnotationObject,
+  PdfDestinationObject,
   PdfErrorReason,
+  PdfLinkTarget,
   PdfRenderPageAnnotationOptions,
   PdfTextAnnoObject,
   Position,
@@ -168,6 +170,8 @@ export interface AnnotationPluginConfig extends BasePluginConfig {
   locked?: LockMode;
   /** When true (default false), automatically enter edit mode after creating an annotation. */
   editAfterCreate?: boolean;
+  /** When true (default), the LinkLockedMode component auto-opens URI links via window.open. Set to false to handle URI navigation yourself via onNavigate. */
+  autoOpenLinks?: boolean;
 }
 
 /**
@@ -226,6 +230,18 @@ type ToolEntry<TTools extends AnnotationToolMap, TId extends ToolId<TTools>> = T
   TId
 > &
   AnnotationTool;
+
+export type NavigateTargetResult =
+  | { outcome: 'navigated' }
+  | { outcome: 'uri'; uri: string }
+  | { outcome: 'destination'; destination: PdfDestinationObject }
+  | { outcome: 'unsupported' };
+
+export interface NavigateEvent {
+  documentId: string;
+  result: NavigateTargetResult;
+  target: PdfLinkTarget;
+}
 
 // Scoped annotation capability for a specific document
 export interface AnnotationScope<TTools extends AnnotationToolMap = AnnotationToolMap> {
@@ -328,9 +344,13 @@ export interface AnnotationScope<TTools extends AnnotationToolMap = AnnotationTo
   /** Update annotation object state without marking dirty or triggering commits. Used by the form plugin to sync PDFium state to the UI. */
   syncAnnotationObject(id: string, patch: Partial<PdfAnnotationObject>): void;
 
+  /** Navigate to a link target. Returns a result indicating whether the plugin handled it or the caller should open a URI. */
+  navigateTarget(target: PdfLinkTarget): Task<NavigateTargetResult, PdfErrorReason>;
+
   onStateChange: EventHook<AnnotationDocumentState>;
   onAnnotationEvent: EventHook<AnnotationEvent>;
   onActiveToolChange: EventHook<ToolUnion<TTools> | null>;
+  onNavigate: EventHook<NavigateEvent>;
 }
 
 export interface AnnotationCapability<TTools extends AnnotationToolMap = AnnotationToolMap> {
@@ -440,6 +460,12 @@ export interface AnnotationCapability<TTools extends AnnotationToolMap = Annotat
     documentId?: string,
   ) => void;
 
+  /** Navigate to a link target. Returns a result indicating whether the plugin handled it or the caller should open a URI. */
+  navigateTarget: (
+    target: PdfLinkTarget,
+    documentId?: string,
+  ) => Task<NavigateTargetResult, PdfErrorReason>;
+
   // Document-scoped operations
   forDocument: (documentId: string) => AnnotationScope<TTools>;
 
@@ -481,6 +507,7 @@ export interface AnnotationCapability<TTools extends AnnotationToolMap = Annotat
   onActiveToolChange: EventHook<AnnotationActiveToolChangeEvent>;
   onAnnotationEvent: EventHook<AnnotationEvent>;
   onToolsChange: EventHook<AnnotationToolsChangeEvent>;
+  onNavigate: EventHook<NavigateEvent>;
 }
 
 export interface GetPageAnnotationsOptions {

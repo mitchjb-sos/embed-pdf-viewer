@@ -34,7 +34,6 @@ import {
   PdfAnnotationSubtype,
   PdfBlendMode,
   PdfPermissionFlag,
-  PdfActionType,
   PdfLinkAnnoObject,
   uuidV4,
 } from '@embedpdf/models';
@@ -2121,15 +2120,12 @@ export const commands: Record<string, Command<State>> = {
     categories: ['annotation', 'annotation-link'],
     action: ({ registry, documentId }) => {
       const annotation = registry.getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)?.provides();
-      const scroll = registry.getPlugin<ScrollPlugin>('scroll')?.provides();
-
       if (!annotation) return;
 
       const annotationScope = annotation.forDocument(documentId);
       const selected = annotationScope.getSelectedAnnotation();
       if (!selected) return;
 
-      // Get the link annotation - either the selected one or the first attached link
       let linkAnnotation: PdfLinkAnnoObject | null = null;
 
       if (isLink(selected)) {
@@ -2143,29 +2139,7 @@ export const commands: Record<string, Command<State>> = {
 
       if (!linkAnnotation?.target) return;
 
-      const target = linkAnnotation.target;
-
-      if (target.type === 'action') {
-        const action = target.action;
-        if (action.type === PdfActionType.URI) {
-          // Open external URL in new tab
-          window.open(action.uri, '_blank', 'noopener,noreferrer');
-        } else if (action.type === PdfActionType.Goto && scroll) {
-          // Navigate to page destination
-          const destination = action.destination;
-          scroll.forDocument(documentId).scrollToPage({
-            pageNumber: destination.pageIndex + 1,
-            behavior: 'smooth',
-          });
-        }
-      } else if (target.type === 'destination' && scroll) {
-        // Navigate to page destination
-        const destination = target.destination;
-        scroll.forDocument(documentId).scrollToPage({
-          pageNumber: destination.pageIndex + 1,
-          behavior: 'smooth',
-        });
-      }
+      annotationScope.navigateTarget(linkAnnotation.target);
     },
     visible: ({ registry, documentId }) => {
       const annotation = registry.getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)?.provides();

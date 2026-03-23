@@ -1143,6 +1143,9 @@ importers:
       '@embedpdf/plugin-interaction-manager':
         specifier: workspace:*
         version: link:../plugin-interaction-manager
+      '@embedpdf/plugin-scroll':
+        specifier: workspace:*
+        version: link:../plugin-scroll
       '@embedpdf/plugin-selection':
         specifier: workspace:*
         version: link:../plugin-selection

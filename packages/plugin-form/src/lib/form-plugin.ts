@@ -1,10 +1,4 @@
-import {
-  BasePlugin,
-  createBehaviorEmitter,
-  createEmitter,
-  Listener,
-  PluginRegistry,
-} from '@embedpdf/core';
+import { BasePlugin, createScopedEmitter, PluginRegistry } from '@embedpdf/core';
 import {
   FieldGroupEntry,
   FieldValueChangeEvent,
@@ -68,9 +62,18 @@ export class FormPlugin extends BasePlugin<
   private history: HistoryCapability | null = null;
   private scroll: ScrollCapability | null = null;
 
-  private readonly state$ = createBehaviorEmitter<FormStateChangeEvent>();
-  private readonly fieldValueChange$ = createEmitter<FieldValueChangeEvent>();
-  private readonly formReady$ = createEmitter<FormReadyEvent>();
+  private readonly state$ = createScopedEmitter<FormDocumentState, FormStateChangeEvent, string>(
+    (documentId, state) => ({ documentId, state }),
+  );
+  private readonly fieldValueChange$ = createScopedEmitter<
+    FieldValueChangeEvent,
+    FieldValueChangeEvent,
+    string
+  >((_, event) => event, { cache: false });
+  private readonly formReady$ = createScopedEmitter<FormFieldInfo[], FormReadyEvent, string>(
+    (documentId, fields) => ({ documentId, fields }),
+    { cache: false },
+  );
 
   /** Per-document logical field index: documentId → (fieldKey → FieldGroupEntry[]) */
   private readonly fieldGroupIndex = new Map<string, Map<string, FieldGroupEntry[]>>();
@@ -110,6 +113,11 @@ export class FormPlugin extends BasePlugin<
     this.fieldGroupIndex.delete(documentId);
     this.fieldNameIndex.delete(documentId);
     this.orderedFieldIndex.delete(documentId);
+
+    // Cleanup scoped emitter caches and listeners
+    this.state$.clearScope(documentId);
+    this.fieldValueChange$.clearScope(documentId);
+    this.formReady$.clearScope(documentId);
   }
 
   override onStoreUpdated(prev: FormState, next: FormState): void {
@@ -117,7 +125,7 @@ export class FormPlugin extends BasePlugin<
       const prevDoc = prev.documents[documentId];
       const nextDoc = next.documents[documentId];
       if (prevDoc !== nextDoc) {
-        this.state$.emit({ documentId, state: nextDoc });
+        this.state$.emit(documentId, nextDoc);
       }
     }
   }
@@ -149,9 +157,9 @@ export class FormPlugin extends BasePlugin<
       getFormFields: (documentId?) => this.getFormFieldsMethod(documentId),
       setFormValues: (values, documentId?) => this.setFormValuesMethod(values, documentId),
       forDocument: (documentId) => this.createFormScope(documentId),
-      onStateChange: this.state$.on,
-      onFieldValueChange: this.fieldValueChange$.on,
-      onFormReady: this.formReady$.on,
+      onStateChange: this.state$.onGlobal,
+      onFieldValueChange: this.fieldValueChange$.onGlobal,
+      onFormReady: this.formReady$.onGlobal,
     };
   }
 
@@ -177,18 +185,9 @@ export class FormPlugin extends BasePlugin<
       getFormValues: () => this.getFormValuesMethod(documentId),
       getFormFields: () => this.getFormFieldsMethod(documentId),
       setFormValues: (values) => this.setFormValuesMethod(values, documentId),
-      onStateChange: (listener: Listener<FormDocumentState>) =>
-        this.state$.on((event) => {
-          if (event.documentId === documentId) listener(event.state);
-        }),
-      onFieldValueChange: (listener: Listener<FieldValueChangeEvent>) =>
-        this.fieldValueChange$.on((event) => {
-          if (event.documentId === documentId) listener(event);
-        }),
-      onFormReady: (listener: Listener<FormFieldInfo[]>) =>
-        this.formReady$.on((event) => {
-          if (event.documentId === documentId) listener(event.fields);
-        }),
+      onStateChange: this.state$.forScope(documentId),
+      onFieldValueChange: this.fieldValueChange$.forScope(documentId),
+      onFormReady: this.formReady$.forScope(documentId),
     };
   }
 
@@ -196,10 +195,7 @@ export class FormPlugin extends BasePlugin<
     switch (event.type) {
       case 'loaded':
         this.buildFieldGroupIndex(event.documentId);
-        this.formReady$.emit({
-          documentId: event.documentId,
-          fields: this.getFormFieldsMethod(event.documentId),
-        });
+        this.formReady$.emit(event.documentId, this.getFormFieldsMethod(event.documentId));
         break;
 
       case 'create':
@@ -548,7 +544,7 @@ export class FormPlugin extends BasePlugin<
       this.annotation.invalidatePageAppearances(pageIndex, documentId);
 
       if (options.emitFieldValueChanges) {
-        this.fieldValueChange$.emit({
+        this.fieldValueChange$.emit(documentId, {
           documentId,
           pageIndex,
           annotationId: id,

@@ -84,6 +84,7 @@ export interface ClickBehaviorMap {
   [PdfAnnotationSubtype.LINE]: LineClickBehavior;
   [PdfAnnotationSubtype.FREETEXT]: FreeTextClickBehavior;
   [PdfAnnotationSubtype.WIDGET]: ShapeClickBehavior;
+  [PdfAnnotationSubtype.LINK]: ShapeClickBehavior;
 }
 
 // Helper type to get tool config
