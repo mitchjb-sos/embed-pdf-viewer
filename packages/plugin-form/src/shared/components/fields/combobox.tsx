@@ -13,18 +13,17 @@ export function ComboboxField(props: ComboboxFieldProps) {
 
   const isDisabled = !isEditable || !!(flag & PDF_FORM_FIELD_FLAG.READONLY);
   const isRequired = !!(flag & PDF_FORM_FIELD_FLAG.REQUIRED);
-  const isMultipleChoice = !!(flag & PDF_FORM_FIELD_FLAG.CHOICE_MULTL_SELECT);
 
   const handleChange = useCallback(
     (evt: FormEvent) => {
       const select = evt.target as HTMLSelectElement;
       const updatedOptions = options.map((opt, i) => ({
         ...opt,
-        isSelected: isMultipleChoice ? select.options[i].selected : i === select.selectedIndex,
+        isSelected: i === select.selectedIndex,
       }));
       onChangeField?.({ ...field, options: updatedOptions });
     },
-    [onChangeField, isMultipleChoice, field, options],
+    [onChangeField, field, options],
   );
 
   const selectedTexts = options.filter((opt) => opt.isSelected).map((opt) => opt.label);
@@ -34,10 +33,9 @@ export function ComboboxField(props: ComboboxFieldProps) {
       ref={inputRef as (el: HTMLSelectElement | null) => void}
       required={isRequired}
       disabled={isDisabled}
-      multiple={isMultipleChoice}
       name={name}
       aria-label={name}
-      {...selectProps(isMultipleChoice, selectedTexts)}
+      {...selectProps(false, selectedTexts)}
       onChange={handleChange}
       onBlur={onBlur}
       style={{ ...selectStyle, opacity: 0 }}
@@ -47,7 +45,7 @@ export function ComboboxField(props: ComboboxFieldProps) {
           <option
             key={index}
             value={option.label}
-            {...optionProps(isMultipleChoice, selectedTexts, option.label)}
+            {...optionProps(false, selectedTexts, option.label)}
           >
             {option.label}
           </option>

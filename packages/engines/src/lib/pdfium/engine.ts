@@ -3249,12 +3249,12 @@ export class PdfiumNative implements IPdfiumExecutor {
     }
 
     // 3. MK colors (border / background)
-    if (annotation.strokeColor) {
+    if (annotation.strokeColor && annotation.strokeColor !== 'transparent') {
       this.setMKColor(annotationPtr, 0, annotation.strokeColor); // EPDF_MK_COLOR_BC
     } else {
       this.clearMKColor(annotationPtr, 0);
     }
-    if (annotation.color) {
+    if (annotation.color && annotation.color !== 'transparent') {
       this.setMKColor(annotationPtr, 1, annotation.color); // EPDF_MK_COLOR_BG
     } else {
       this.clearMKColor(annotationPtr, 1);
@@ -3302,12 +3302,12 @@ export class PdfiumNative implements IPdfiumExecutor {
     }
 
     // 2. MK colors (border / background)
-    if (annotation.strokeColor) {
+    if (annotation.strokeColor && annotation.strokeColor !== 'transparent') {
       this.setMKColor(annotationPtr, 0, annotation.strokeColor);
     } else {
       this.clearMKColor(annotationPtr, 0);
     }
-    if (annotation.color) {
+    if (annotation.color && annotation.color !== 'transparent') {
       this.setMKColor(annotationPtr, 1, annotation.color);
     } else {
       this.clearMKColor(annotationPtr, 1);
@@ -3359,12 +3359,12 @@ export class PdfiumNative implements IPdfiumExecutor {
     }
 
     // 3. MK colors (border / background)
-    if (annotation.strokeColor) {
+    if (annotation.strokeColor && annotation.strokeColor !== 'transparent') {
       this.setMKColor(annotationPtr, 0, annotation.strokeColor);
     } else {
       this.clearMKColor(annotationPtr, 0);
     }
-    if (annotation.color) {
+    if (annotation.color && annotation.color !== 'transparent') {
       this.setMKColor(annotationPtr, 1, annotation.color);
     } else {
       this.clearMKColor(annotationPtr, 1);
