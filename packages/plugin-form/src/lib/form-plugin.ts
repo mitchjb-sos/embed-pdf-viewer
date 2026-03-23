@@ -290,13 +290,6 @@ export class FormPlugin extends BasePlugin<
     const navigable = allWidgets.filter(
       ({ widget }) => !(widget.field.flag & PDF_FORM_FIELD_FLAG.READONLY),
     );
-    navigable.sort((a, b) => {
-      if (a.entry.pageIndex !== b.entry.pageIndex) return a.entry.pageIndex - b.entry.pageIndex;
-      const ay = a.widget.rect.origin.y;
-      const by = b.widget.rect.origin.y;
-      if (ay !== by) return ay - by;
-      return a.widget.rect.origin.x - b.widget.rect.origin.x;
-    });
     this.orderedFieldIndex.set(
       documentId,
       navigable.map(({ entry }) => entry),
