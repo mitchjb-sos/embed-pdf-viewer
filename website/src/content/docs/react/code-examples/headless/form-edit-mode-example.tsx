@@ -39,7 +39,7 @@ import { Loader2, Lock, LockOpen, ZoomIn, ZoomOut } from 'lucide-react'
 const fillModeLock = {
   type: LockModeType.Include,
   categories: ['form'],
-} as const
+}
 
 const plugins = [
   createPluginRegistration(DocumentManagerPluginPackage, {

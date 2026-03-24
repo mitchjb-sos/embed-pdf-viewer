@@ -135,7 +135,16 @@ function CombField(props: CombFieldProps) {
 }
 
 export function TextField(props: TextFieldProps) {
-  const { annotation, isEditable, onChangeField, onFocus, onBlur, inputRef, scale } = props;
+  const {
+    annotation,
+    isEditable,
+    onChangeField,
+    onFocus,
+    onBlur,
+    inputRef,
+    scale,
+    syncExternalValue = true,
+  } = props;
   const field = annotation.field;
 
   const { flag } = field;
@@ -145,8 +154,9 @@ export function TextField(props: TextFieldProps) {
   const [localValue, setLocalValue] = useState(value);
 
   useEffect(() => {
+    if (!syncExternalValue) return;
     setLocalValue(value);
-  }, [value]);
+  }, [value, syncExternalValue]);
 
   const changeValue = useCallback(
     (evt: FormEvent) => {

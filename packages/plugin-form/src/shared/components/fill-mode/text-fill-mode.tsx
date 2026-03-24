@@ -76,6 +76,7 @@ export function TextFillMode(props: AnnotationRendererProps<PdfWidgetAnnoObject>
           pageIndex={pageIndex}
           isEditable={true}
           onChangeField={handleChangeField}
+          syncExternalValue={!editing}
           onFocus={handleFocus}
           onBlur={handleBlur}
           inputRef={handleInputRef}

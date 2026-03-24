@@ -18,6 +18,7 @@ export interface FieldProps {
   onFocus?: () => void;
   onBlur?: () => void;
   inputRef?: (el: HTMLElement | null) => void;
+  syncExternalValue?: boolean;
 }
 
 export type TextFieldProps = Omit<FieldProps, 'annotation'> & {

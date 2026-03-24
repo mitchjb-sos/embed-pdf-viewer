@@ -59,6 +59,7 @@
       pageIndex={widgetState.pageIndex}
       isEditable={true}
       onChangeField={widgetState.handleChangeField}
+      syncExternalValue={!editing}
       onFocus={handleFocus}
       onBlur={handleBlur}
       inputRef={handleInputRef}

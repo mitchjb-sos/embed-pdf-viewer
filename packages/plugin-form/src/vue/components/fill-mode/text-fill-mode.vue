@@ -78,6 +78,7 @@ function handleInputRef(el: HTMLElement | null) {
         :pageIndex="ws.pageIndex.value"
         :isEditable="true"
         :onChangeField="ws.handleChangeField"
+        :syncExternalValue="!editing"
         :onFocus="handleFocus"
         :onBlur="handleBlur"
         :inputRef="handleInputRef"

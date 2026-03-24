@@ -15,6 +15,7 @@ const value = computed(() => field.value.value);
 const localValue = ref(value.value);
 
 watch(value, (v) => {
+  if (!props.syncExternalValue) return;
   localValue.value = v;
 });
 

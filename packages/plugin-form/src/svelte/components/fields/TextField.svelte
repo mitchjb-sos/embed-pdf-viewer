@@ -3,8 +3,16 @@
   import type { TextFieldProps } from '../../../shared/components/types';
   import { useIOSZoomPrevention } from '@embedpdf/plugin-annotation/svelte';
 
-  let { annotation, scale, isEditable, onChangeField, onFocus, onBlur, inputRef }: TextFieldProps =
-    $props();
+  let {
+    annotation,
+    scale,
+    isEditable,
+    onChangeField,
+    onFocus,
+    onBlur,
+    inputRef,
+    syncExternalValue = true,
+  }: TextFieldProps = $props();
 
   const field = $derived(annotation.field);
   const flag = $derived(field.flag);
@@ -14,6 +22,7 @@
   let localValue = $state(value);
 
   $effect(() => {
+    if (!syncExternalValue) return;
     localValue = value;
   });
 
