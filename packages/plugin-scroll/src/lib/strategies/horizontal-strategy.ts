@@ -82,4 +82,13 @@ export class HorizontalScrollStrategy extends BaseScrollStrategy {
   protected getCenteringOffsetX(_item: VirtualItem, _totalContentSize: Size | undefined): number {
     return 0;
   }
+
+  /**
+   * Horizontal rows visually center shorter items within the tallest row height.
+   * Match that DOM layout so page-coordinate targeting lands on the rendered page.
+   */
+  protected getCenteringOffsetY(item: VirtualItem, totalContentSize: Size | undefined): number {
+    if (!totalContentSize || item.height >= totalContentSize.height) return 0;
+    return (totalContentSize.height - item.height) / 2;
+  }
 }

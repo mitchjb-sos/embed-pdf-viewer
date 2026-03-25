@@ -33,7 +33,7 @@ export abstract class BaseScrollStrategy {
   abstract getTotalContentSize(virtualItems: VirtualItem[]): Size;
   protected abstract getScrollOffset(viewport: ViewportMetrics): number;
   protected abstract getClientSize(viewport: ViewportMetrics): number;
-  
+
   /**
    * Returns the item's extent along the scroll axis. Vertical layout uses height;
    * horizontal layout uses width. Used for visible range and end spacing calculations.
@@ -48,6 +48,15 @@ export abstract class BaseScrollStrategy {
   protected getCenteringOffsetX(_item: VirtualItem, totalContentSize: Size | undefined): number {
     if (!totalContentSize || _item.width >= totalContentSize.width) return 0;
     return (totalContentSize.width - _item.width) / 2;
+  }
+
+  /**
+   * Vertical centering offset for items shorter than the content max height.
+   * Horizontal layout centers items within the row height; vertical layout keeps
+   * items top-aligned and uses the default of 0.
+   */
+  protected getCenteringOffsetY(_item: VirtualItem, _totalContentSize: Size | undefined): number {
+    return 0;
   }
 
   protected getVisibleRange(
@@ -133,10 +142,11 @@ export abstract class BaseScrollStrategy {
 
     virtualItems.forEach((item) => {
       const centeringOffsetX = this.getCenteringOffsetX(item, totalContentSize);
+      const centeringOffsetY = this.getCenteringOffsetY(item, totalContentSize);
 
       item.pageLayouts.forEach((page) => {
         const itemX = (item.x + centeringOffsetX) * scale;
-        const itemY = item.y * scale;
+        const itemY = (item.y + centeringOffsetY) * scale;
         const pageX = itemX + page.x * scale;
         const pageY = itemY + page.y * scale;
         const pageWidth = page.rotatedWidth * scale;
@@ -212,11 +222,12 @@ export abstract class BaseScrollStrategy {
     if (!pageLayout) return null;
 
     const centeringOffsetX = this.getCenteringOffsetX(item, totalContentSize);
+    const centeringOffsetY = this.getCenteringOffsetY(item, totalContentSize);
 
     return {
       origin: {
         x: item.x + pageLayout.x + centeringOffsetX,
-        y: item.y + pageLayout.y,
+        y: item.y + pageLayout.y + centeringOffsetY,
       },
       size: {
         width: pageLayout.width,
