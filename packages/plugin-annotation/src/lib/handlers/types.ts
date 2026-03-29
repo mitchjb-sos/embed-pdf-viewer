@@ -95,6 +95,11 @@ export interface LinkPreviewData {
   strokeDashArray: number[];
 }
 
+export interface StampPreviewData {
+  rect: Rect;
+  ghostUrl: string;
+}
+
 /**
  * Map types to their preview data
  */
@@ -107,6 +112,7 @@ export interface PreviewDataMap {
   [PdfAnnotationSubtype.INK]: InkPreviewData;
   [PdfAnnotationSubtype.FREETEXT]: FreeTextPreviewData;
   [PdfAnnotationSubtype.LINK]: LinkPreviewData;
+  [PdfAnnotationSubtype.STAMP]: StampPreviewData;
 }
 
 /**
@@ -150,16 +156,33 @@ export interface HandlerServices {
 }
 
 /**
+ * Extensible map from tool ID to per-activation context data.
+ * Plugins extend this via declaration merging to provide typed context
+ * for their custom tools (e.g. stamp appearance data, ghost image URL).
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+export interface ToolContextMap {}
+
+/**
+ * Resolves the tool context type for a given tool ID.
+ * Returns the mapped type if known, otherwise a generic record.
+ */
+export type ResolvedToolContext<TId extends string> = TId extends keyof ToolContextMap
+  ? ToolContextMap[TId]
+  : Record<string, unknown>;
+
+/**
  * The context object passed to a handler factory when creating a handler.
  * It contains all the necessary information and callbacks.
  */
-export interface HandlerFactory<A extends PdfAnnotationObject> {
+export interface HandlerFactory<A extends PdfAnnotationObject, TId extends string = string> {
   annotationType: PdfAnnotationSubtype;
-  create(context: HandlerContext<A>): PointerEventHandlersWithLifecycle;
+  create(context: HandlerContext<A, TId>): PointerEventHandlersWithLifecycle;
 }
 
-export interface HandlerContext<A extends PdfAnnotationObject> {
+export interface HandlerContext<A extends PdfAnnotationObject, TId extends string = string> {
   getTool: () => AnnotationTool<A> | undefined;
+  getToolContext: () => ResolvedToolContext<TId> | undefined;
   pageIndex: number;
   pageSize: Size;
   /** Effective page rotation (page intrinsic + document rotation), as a quarter-turn value (0-3). */

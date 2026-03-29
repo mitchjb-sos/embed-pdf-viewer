@@ -9,6 +9,6 @@ export const manifest: PluginManifest<StampPluginConfig> = {
   version: '1.0.0',
   provides: ['stamp'],
   requires: ['annotation'],
-  optional: [],
+  optional: ['i18n'],
   defaultConfig: {},
 };

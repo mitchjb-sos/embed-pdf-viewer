@@ -1,11 +1,15 @@
 import { BasePlugin, createEmitter, PluginRegistry } from '@embedpdf/core';
 import { Task, PdfErrorReason, PdfErrorCode, PdfAnnotationObject } from '@embedpdf/models';
+import { AnnotationCapability, AnnotationPlugin } from '@embedpdf/plugin-annotation';
+import { I18nCapability, I18nPlugin } from '@embedpdf/plugin-i18n';
 import {
   StampCapability,
   StampScope,
   StampDefinition,
   StampLibrary,
   StampLibraryConfig,
+  StampManifest,
+  StampManifestSource,
   StampPluginConfig,
   StampState,
   ExportedStampLibrary,
@@ -13,9 +17,17 @@ import {
 } from './types';
 import { addStampLibrary, removeStampLibrary, StampAction } from './actions';
 import { STAMP_PLUGIN_ID } from './manifest';
+import { stampTools } from './tools';
+import { parseAnnotationName } from './defaults/name-map';
 
-const CUSTOM_LIBRARY_ID = 'custom-stamps';
 const CUSTOM_LIBRARY_NAME = 'Custom Stamps';
+
+interface ManagedManifest {
+  source: StampManifestSource;
+  localeAware: boolean;
+  currentLocale: string;
+  libraryId: string | null;
+}
 
 export class StampPlugin extends BasePlugin<
   StampPluginConfig,
@@ -27,7 +39,11 @@ export class StampPlugin extends BasePlugin<
 
   private readonly libraries = new Map<string, StampLibrary>();
   private readonly libraryChange$ = createEmitter<StampLibrary[]>();
+  private readonly managedManifests: ManagedManifest[] = [];
   private nextLibraryId = 0;
+  private annotation: AnnotationCapability | null = null;
+  private i18n: I18nCapability | null = null;
+  private localeUnsubscribe: (() => void) | null = null;
 
   constructor(
     id: string,
@@ -35,6 +51,15 @@ export class StampPlugin extends BasePlugin<
     private config: StampPluginConfig,
   ) {
     super(id, registry);
+
+    this.annotation = registry.getPlugin<AnnotationPlugin>('annotation')?.provides() ?? null;
+    if (this.annotation) {
+      for (const tool of stampTools) {
+        this.annotation.addTool(tool);
+      }
+    }
+
+    this.i18n = registry.getPlugin<I18nPlugin>('i18n')?.provides() ?? null;
   }
 
   async initialize(): Promise<void> {
@@ -42,6 +67,10 @@ export class StampPlugin extends BasePlugin<
       for (const libConfig of this.config.libraries) {
         await this.loadLibraryInternal(libConfig).toPromise();
       }
+    }
+
+    if (this.config.manifests && this.config.manifests.length > 0) {
+      await this.initializeManifests();
     }
   }
 
@@ -52,8 +81,11 @@ export class StampPlugin extends BasePlugin<
       renderStamp: (libraryId, pageIndex, width, dpr) =>
         this.renderStamp(libraryId, pageIndex, width, dpr),
       loadLibrary: (config) => this.loadLibrary(config),
+      loadLibraryFromManifest: (url) => this.loadLibraryFromManifest(url),
       createNewLibrary: (name, options) => this.createNewLibrary(name, options),
       addStampToLibrary: (libraryId, stamp, pdf) => this.addStampToLibrary(libraryId, stamp, pdf),
+      removeStampFromLibrary: (libraryId, pageIndex) =>
+        this.removeStampFromLibrary(libraryId, pageIndex),
       removeLibrary: (id) => this.removeLibrary(id),
       exportLibrary: (id) => this.exportLibrary(id),
       forDocument: (documentId) => this.createStampScope(documentId),
@@ -119,6 +151,7 @@ export class StampPlugin extends BasePlugin<
         dpr: dpr ?? 1,
         withAnnotations: true,
         rotation: page.rotation,
+        transparentBackground: true,
       },
     );
   }
@@ -143,6 +176,7 @@ export class StampPlugin extends BasePlugin<
           document: doc,
           stamps: [],
           categories: options?.categories,
+          readonly: false,
         };
 
         this.libraries.set(libraryId, library);
@@ -176,6 +210,14 @@ export class StampPlugin extends BasePlugin<
       task.reject({
         code: PdfErrorCode.NotFound,
         message: `Stamp library not found: ${libraryId}`,
+      });
+      return task;
+    }
+
+    if (library.readonly) {
+      task.reject({
+        code: PdfErrorCode.NotSupport,
+        message: `Cannot add stamps to readonly library: ${libraryId}`,
       });
       return task;
     }
@@ -236,7 +278,76 @@ export class StampPlugin extends BasePlugin<
         this.createStampFromAnnotation(documentId, annotation, stamp, libraryId),
       createStampFromAnnotations: (annotations, stamp, libraryId) =>
         this.createStampFromAnnotations(documentId, annotations, stamp, libraryId),
+      activateStampPlacement: (libraryId, stamp) =>
+        this.activateStampPlacement(documentId, libraryId, stamp),
     };
+  }
+
+  private activateStampPlacement(
+    documentId: string,
+    libraryId: string,
+    stamp: StampDefinition,
+  ): Task<void, PdfErrorReason> {
+    const task = new Task<void, PdfErrorReason>();
+
+    const library = this.libraries.get(libraryId);
+    if (!library) {
+      task.reject({
+        code: PdfErrorCode.NotFound,
+        message: `Stamp library not found: ${libraryId}`,
+      });
+      return task;
+    }
+
+    const page = library.document.pages[stamp.pageIndex];
+    if (!page) {
+      task.reject({
+        code: PdfErrorCode.NotFound,
+        message: `Page ${stamp.pageIndex} not found in library`,
+      });
+      return task;
+    }
+
+    const stampSize = page.size;
+
+    this.engine.extractPages(library.document, [stamp.pageIndex]).wait(
+      (appearance) => {
+        this.renderStamp(libraryId, stamp.pageIndex, stampSize.width, 2).wait(
+          (blob) => {
+            const ghostUrl = URL.createObjectURL(blob);
+            this.annotation?.setActiveTool('rubberStamp', {
+              appearance,
+              ghostUrl,
+              stampSize,
+              libraryId,
+              stampName: stamp.name,
+              subject: stamp.subject,
+            });
+            task.resolve();
+          },
+          (error) => {
+            this.logger.error(
+              'StampPlugin',
+              'ActivateStampPlacement',
+              'Failed to render stamp preview',
+              error,
+            );
+            task.fail(error);
+          },
+        );
+      },
+      (error) => {
+        this.logger.error(
+          'StampPlugin',
+          'ActivateStampPlacement',
+          'Failed to extract stamp page',
+          error,
+        );
+        task.fail(error);
+      },
+    );
+
+    return task;
   }
 
   private createStampFromAnnotation(
@@ -443,6 +554,7 @@ export class StampPlugin extends BasePlugin<
           document: doc,
           stamps: config.stamps,
           categories: config.categories,
+          readonly: config.readonly ?? false,
         };
 
         this.libraries.set(libraryId, library);
@@ -465,6 +577,200 @@ export class StampPlugin extends BasePlugin<
     return task;
   }
 
+  removeStampFromLibrary(libraryId: string, pageIndex: number): Task<void, PdfErrorReason> {
+    const task = new Task<void, PdfErrorReason>();
+
+    const library = this.libraries.get(libraryId);
+    if (!library) {
+      task.reject({
+        code: PdfErrorCode.NotFound,
+        message: `Stamp library not found: ${libraryId}`,
+      });
+      return task;
+    }
+
+    if (library.readonly) {
+      task.reject({
+        code: PdfErrorCode.NotSupport,
+        message: `Cannot remove stamps from readonly library: ${libraryId}`,
+      });
+      return task;
+    }
+
+    const stampIdx = library.stamps.findIndex((s) => s.pageIndex === pageIndex);
+    if (stampIdx === -1) {
+      task.reject({
+        code: PdfErrorCode.NotFound,
+        message: `Stamp at page ${pageIndex} not found in library: ${libraryId}`,
+      });
+      return task;
+    }
+
+    library.stamps.splice(stampIdx, 1);
+    this.emitLibraryChange();
+    task.resolve();
+
+    return task;
+  }
+
+  loadLibraryFromManifest(url: string): Task<string, PdfErrorReason> {
+    return this.loadManifestUrl(url, true);
+  }
+
+  private async initializeManifests(): Promise<void> {
+    const currentLocale = this.i18n?.getLocale() ?? 'en';
+
+    for (const source of this.config.manifests!) {
+      const localeAware = source.url.includes('{locale}');
+      const locale = localeAware ? currentLocale : '';
+      const resolvedUrl = source.url.replace('{locale}', locale || currentLocale);
+
+      const managed: ManagedManifest = {
+        source,
+        localeAware,
+        currentLocale: localeAware ? currentLocale : '',
+        libraryId: null,
+      };
+      this.managedManifests.push(managed);
+
+      try {
+        const libraryId = await this.loadManifestUrl(resolvedUrl, true).toPromise();
+        managed.libraryId = libraryId;
+      } catch {
+        if (localeAware && source.fallbackLocale && source.fallbackLocale !== currentLocale) {
+          const fallbackUrl = source.url.replace('{locale}', source.fallbackLocale);
+          try {
+            const libraryId = await this.loadManifestUrl(fallbackUrl, true).toPromise();
+            managed.libraryId = libraryId;
+            managed.currentLocale = source.fallbackLocale;
+          } catch {
+            this.logger.warn(
+              'StampPlugin',
+              'InitManifests',
+              `Failed to load manifest (including fallback): ${source.url}`,
+            );
+          }
+        } else {
+          this.logger.warn(
+            'StampPlugin',
+            'InitManifests',
+            `Failed to load manifest: ${resolvedUrl}`,
+          );
+        }
+      }
+    }
+
+    if (this.i18n) {
+      this.localeUnsubscribe = this.i18n.onLocaleChange((event) => {
+        this.handleLocaleChange(event.currentLocale);
+      });
+    }
+  }
+
+  private async handleLocaleChange(newLocale: string): Promise<void> {
+    for (const managed of this.managedManifests) {
+      if (!managed.localeAware || managed.currentLocale === newLocale) {
+        continue;
+      }
+
+      if (managed.libraryId) {
+        try {
+          await this.removeLibrary(managed.libraryId).toPromise();
+        } catch {
+          // Best effort removal
+        }
+        managed.libraryId = null;
+      }
+
+      const resolvedUrl = managed.source.url.replace('{locale}', newLocale);
+
+      try {
+        const libraryId = await this.loadManifestUrl(resolvedUrl, true).toPromise();
+        managed.libraryId = libraryId;
+        managed.currentLocale = newLocale;
+      } catch {
+        const fallback = managed.source.fallbackLocale ?? 'en';
+        if (fallback !== newLocale) {
+          const fallbackUrl = managed.source.url.replace('{locale}', fallback);
+          try {
+            const libraryId = await this.loadManifestUrl(fallbackUrl, true).toPromise();
+            managed.libraryId = libraryId;
+            managed.currentLocale = fallback;
+          } catch {
+            this.logger.warn(
+              'StampPlugin',
+              'LocaleChange',
+              `Failed to load manifest for locale ${newLocale} (including fallback): ${managed.source.url}`,
+            );
+          }
+        } else {
+          this.logger.warn(
+            'StampPlugin',
+            'LocaleChange',
+            `Failed to load manifest for locale ${newLocale}: ${managed.source.url}`,
+          );
+        }
+      }
+    }
+  }
+
+  private loadManifestUrl(url: string, readonly: boolean): Task<string, PdfErrorReason> {
+    const task = new Task<string, PdfErrorReason>();
+
+    fetch(url)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json() as Promise<StampManifest>;
+      })
+      .then((manifest) => {
+        const pdfUrl = this.resolveManifestPdfUrl(url, manifest.pdf);
+
+        const stamps: StampDefinition[] = manifest.stamps.map((entry) => ({
+          pageIndex: entry.pageIndex,
+          name: parseAnnotationName(entry.name),
+          subject: entry.subject,
+          label: entry.label,
+          categories: entry.categories,
+        }));
+
+        const config: StampLibraryConfig = {
+          name: manifest.name,
+          pdf: pdfUrl,
+          stamps,
+          categories: manifest.categories,
+          readonly,
+        };
+
+        this.loadLibraryInternal(config).wait(
+          (libraryId) => task.resolve(libraryId),
+          (error) => task.fail(error),
+        );
+      })
+      .catch((error) => {
+        this.logger.error('StampPlugin', 'LoadManifest', `Failed to fetch manifest: ${url}`, error);
+        task.reject({
+          code: PdfErrorCode.NotFound,
+          message: `Failed to load stamp manifest: ${url}`,
+        });
+      });
+
+    return task;
+  }
+
+  private resolveManifestPdfUrl(manifestUrl: string, pdfPath: string): string {
+    if (
+      pdfPath.startsWith('http://') ||
+      pdfPath.startsWith('https://') ||
+      pdfPath.startsWith('/')
+    ) {
+      return pdfPath;
+    }
+    const base = manifestUrl.substring(0, manifestUrl.lastIndexOf('/') + 1);
+    return base + pdfPath;
+  }
+
   private generateLibraryId(): string {
     return `stamp-lib-${this.nextLibraryId++}`;
   }
@@ -474,6 +780,10 @@ export class StampPlugin extends BasePlugin<
   }
 
   override async destroy(): Promise<void> {
+    if (this.localeUnsubscribe) {
+      this.localeUnsubscribe();
+      this.localeUnsubscribe = null;
+    }
     const libs = Array.from(this.libraries.values());
     for (const library of libs) {
       try {
@@ -483,6 +793,7 @@ export class StampPlugin extends BasePlugin<
       }
     }
     this.libraries.clear();
+    this.managedManifests.length = 0;
     super.destroy();
   }
 }

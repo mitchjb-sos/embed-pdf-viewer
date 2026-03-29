@@ -96,6 +96,24 @@ export function PreviewRenderer({ toolId, preview, scale }: Props) {
     );
   }
 
+  if (preview.type === PdfAnnotationSubtype.STAMP) {
+    return (
+      <div style={style}>
+        <img
+          src={preview.data.ghostUrl}
+          style={{
+            width: '100%',
+            height: '100%',
+            opacity: 0.6,
+            objectFit: 'contain' as const,
+            pointerEvents: 'none' as const,
+          }}
+          alt=""
+        />
+      </div>
+    );
+  }
+
   const match = registeredRenderers.find((r) => r.id === toolId && r.renderPreview);
   if (match?.renderPreview) {
     return (

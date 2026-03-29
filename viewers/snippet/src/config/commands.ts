@@ -1926,7 +1926,7 @@ export const commands: Record<string, Command<State>> = {
   'stamp:create-from-selected': {
     id: 'stamp:create-from-selected',
     labelKey: 'stamp.createFromSelected',
-    icon: 'rubberStamp',
+    icon: 'rubberStampPlus',
     categories: ['annotation', 'stamp'],
     action: ({ registry, documentId }) => {
       const annotationScope = registry
@@ -1950,13 +1950,19 @@ export const commands: Record<string, Command<State>> = {
         subject: name,
         categories: ['custom', 'sidebar'],
       });
+
+      const uiScope = registry
+        .getPlugin<UIPlugin>(UI_PLUGIN_ID)
+        ?.provides()
+        ?.forDocument(documentId);
+      uiScope?.setActiveSidebar('left', 'main', 'rubber-stamp-panel');
     },
   },
 
   'stamp:create-from-group': {
     id: 'stamp:create-from-group',
     labelKey: 'stamp.createFromGroup',
-    icon: 'rubberStamp',
+    icon: 'rubberStampPlus',
     categories: ['annotation', 'stamp', 'annotation-group'],
     action: ({ registry, documentId }) => {
       const annotationScope = registry
@@ -1981,6 +1987,12 @@ export const commands: Record<string, Command<State>> = {
         subject: name,
         categories: ['custom', 'sidebar'],
       });
+
+      const uiScope = registry
+        .getPlugin<UIPlugin>(UI_PLUGIN_ID)
+        ?.provides()
+        ?.forDocument(documentId);
+      uiScope?.setActiveSidebar('left', 'main', 'rubber-stamp-panel');
     },
   },
 

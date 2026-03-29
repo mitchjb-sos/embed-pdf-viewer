@@ -107,7 +107,9 @@ import {
   AnnotationCreateContext,
   isUuidV4,
   uuidV4,
-  PdfAnnotationIcon,
+  PdfAnnotationName,
+  PdfStampName,
+  PdfTextIconName,
   PdfAnnotationReplyType,
   PdfRenderPageAnnotationOptions,
   PdfRedactTextOptions,
@@ -132,6 +134,8 @@ import {
   PdfPageTextRuns,
   PdfAlphaColor,
   PdfBlendMode,
+  PdfFileAttachmentIconName,
+  PdfSoundIconName,
 } from '@embedpdf/models';
 import { computeFormDrawParams, isValidCustomKey, readArrayBuffer, readString } from './helper';
 import { WrappedPdfiumModule } from '@embedpdf/pdfium';
@@ -3236,7 +3240,12 @@ export class PdfiumNative implements IPdfiumExecutor {
     annotation: PdfTextAnnoObject,
   ) {
     // Type-specific properties
-    if (!this.setAnnotationIcon(annotationPtr, annotation.icon || PdfAnnotationIcon.Comment)) {
+    if (
+      !this.setAnnotationName(
+        annotationPtr,
+        annotation.name ?? annotation.icon ?? PdfAnnotationName.Comment,
+      )
+    ) {
       return false;
     }
     if (annotation.state && !this.setAnnotString(annotationPtr, 'State', annotation.state)) {
@@ -4085,7 +4094,8 @@ export class PdfiumNative implements IPdfiumExecutor {
     annotation: PdfStampAnnoObject,
     context?: AnnotationCreateContext<PdfStampAnnoObject>,
   ) {
-    if (annotation.icon && !this.setAnnotationIcon(annotationPtr, annotation.icon)) {
+    const stampName = annotation.name ?? annotation.icon;
+    if (stampName && !this.setAnnotationName(annotationPtr, stampName)) {
       return false;
     }
     if (annotation.subject && !this.setAnnotString(annotationPtr, 'Subj', annotation.subject)) {
@@ -6168,24 +6178,24 @@ export class PdfiumNative implements IPdfiumExecutor {
   }
 
   /**
-   * Get the icon of the annotation
+   * Get the /Name entry of the annotation
    *
    * @param annotationPtr - pointer to an `FPDF_ANNOTATION`
-   * @returns `PdfAnnotationIcon`
+   * @returns `PdfAnnotationName`
    */
-  private getAnnotationIcon(annotationPtr: number): PdfAnnotationIcon {
-    return this.pdfiumModule.EPDFAnnot_GetIcon(annotationPtr);
+  private getAnnotationName(annotationPtr: number): PdfAnnotationName {
+    return this.pdfiumModule.EPDFAnnot_GetName(annotationPtr);
   }
 
   /**
-   * Set the icon of the annotation
+   * Set the /Name entry of the annotation
    *
    * @param annotationPtr - pointer to an `FPDF_ANNOTATION`
-   * @param icon - `PdfAnnotationIcon`
+   * @param name - `PdfAnnotationName`
    * @returns `true` on success
    */
-  private setAnnotationIcon(annotationPtr: number, icon: PdfAnnotationIcon): boolean {
-    return this.pdfiumModule.EPDFAnnot_SetIcon(annotationPtr, icon);
+  private setAnnotationName(annotationPtr: number, name: PdfAnnotationName): boolean {
+    return this.pdfiumModule.EPDFAnnot_SetName(annotationPtr, name);
   }
 
   /**
@@ -7244,7 +7254,7 @@ export class PdfiumNative implements IPdfiumExecutor {
     const stateModel = this.getAnnotString(annotationPtr, 'StateModel') as PdfAnnotationStateModel;
     const color = this.getAnnotationColor(annotationPtr);
     const opacity = this.getAnnotationOpacity(annotationPtr);
-    const icon = this.getAnnotationIcon(annotationPtr);
+    const name = this.getAnnotationName(annotationPtr);
 
     return {
       pageIndex: page.index,
@@ -7256,7 +7266,8 @@ export class PdfiumNative implements IPdfiumExecutor {
       opacity,
       state,
       stateModel,
-      icon,
+      name,
+      icon: name,
       ...this.readBaseAnnotationProperties(doc, page, annotationPtr),
     };
   }
@@ -7945,12 +7956,15 @@ export class PdfiumNative implements IPdfiumExecutor {
   ): PdfStampAnnoObject | undefined {
     const pageRect = this.readPageAnnoRect(annotationPtr);
     const rect = this.convertPageRectToDeviceRect(doc, page, pageRect);
+    const name = this.getAnnotationName(annotationPtr);
 
     return {
       pageIndex: page.index,
       id: index,
       type: PdfAnnotationSubtype.STAMP,
       rect,
+      name,
+      icon: name,
       ...this.readBaseAnnotationProperties(doc, page, annotationPtr),
     };
   }
@@ -9541,8 +9555,8 @@ export class PdfiumNative implements IPdfiumExecutor {
       heapPtr,
       stride,
     );
-    // white background like page renderers typically do
-    this.pdfiumModule.FPDFBitmap_FillRect(bitmapPtr, 0, 0, wDev, hDev, 0xffffffff);
+    const bgColor = options?.transparentBackground ? 0x00000000 : 0xffffffff;
+    this.pdfiumModule.FPDFBitmap_FillRect(bitmapPtr, 0, 0, wDev, hDev, bgColor);
 
     const M = buildUserToDeviceMatrix(rect, rotation, wDev, hDev);
 

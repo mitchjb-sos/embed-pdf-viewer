@@ -32,6 +32,7 @@ import { SquaresIcon } from './squares';
 import { ListTreeIcon } from './list-tree';
 import { PaperclipIcon } from './paperclip';
 import { RubberStampIcon } from './rubber-stamp';
+import { RubberStampPlusIcon } from './rubber-stamp-plus';
 import { UnderlineIcon } from './underline';
 import { SquigglyIcon } from './squiggly';
 import { StrikethroughIcon } from './strikethrough';
@@ -131,6 +132,7 @@ export const icons: Icons = {
   listTree: ListTreeIcon,
   paperclip: PaperclipIcon,
   rubberStamp: RubberStampIcon,
+  rubberStampPlus: RubberStampPlusIcon,
   copy: CopyIcon,
   underline: UnderlineIcon,
   squiggly: SquigglyIcon,
