@@ -1,26 +1,27 @@
 import { BasePlugin, createEmitter, PluginRegistry } from '@embedpdf/core';
-import { Task, PdfErrorReason, PdfErrorCode, PdfAnnotationObject } from '@embedpdf/models';
+import { Task, PdfErrorReason, PdfErrorCode, PdfAnnotationObject, uuidV4 } from '@embedpdf/models';
 import { AnnotationCapability, AnnotationPlugin } from '@embedpdf/plugin-annotation';
 import { I18nCapability, I18nPlugin } from '@embedpdf/plugin-i18n';
 import {
   StampCapability,
   StampScope,
   StampDefinition,
+  StampDefinitionUpdate,
   StampLibrary,
   StampLibraryConfig,
+  StampLibraryUpdate,
   StampManifest,
   StampManifestSource,
   StampPluginConfig,
   StampState,
   ExportedStampLibrary,
   ResolvedStamp,
+  DefaultLibraryConfig,
 } from './types';
 import { addStampLibrary, removeStampLibrary, StampAction } from './actions';
 import { STAMP_PLUGIN_ID } from './manifest';
 import { stampTools } from './tools';
 import { parseAnnotationName } from './defaults/name-map';
-
-const CUSTOM_LIBRARY_NAME = 'Custom Stamps';
 
 interface ManagedManifest {
   source: StampManifestSource;
@@ -40,7 +41,6 @@ export class StampPlugin extends BasePlugin<
   private readonly libraries = new Map<string, StampLibrary>();
   private readonly libraryChange$ = createEmitter<StampLibrary[]>();
   private readonly managedManifests: ManagedManifest[] = [];
-  private nextLibraryId = 0;
   private annotation: AnnotationCapability | null = null;
   private i18n: I18nCapability | null = null;
   private localeUnsubscribe: (() => void) | null = null;
@@ -84,8 +84,10 @@ export class StampPlugin extends BasePlugin<
       loadLibraryFromManifest: (url) => this.loadLibraryFromManifest(url),
       createNewLibrary: (name, options) => this.createNewLibrary(name, options),
       addStampToLibrary: (libraryId, stamp, pdf) => this.addStampToLibrary(libraryId, stamp, pdf),
-      removeStampFromLibrary: (libraryId, pageIndex) =>
-        this.removeStampFromLibrary(libraryId, pageIndex),
+      removeStampFromLibrary: (libraryId, stampId) =>
+        this.removeStampFromLibrary(libraryId, stampId),
+      updateStamp: (libraryId, stampId, updates) => this.updateStamp(libraryId, stampId, updates),
+      updateLibrary: (libraryId, updates) => this.updateLibrary(libraryId, updates),
       removeLibrary: (id) => this.removeLibrary(id),
       exportLibrary: (id) => this.exportLibrary(id),
       forDocument: (documentId) => this.createStampScope(documentId),
@@ -162,10 +164,10 @@ export class StampPlugin extends BasePlugin<
 
   createNewLibrary(
     name: string,
-    options?: { categories?: string[] },
+    options?: { categories?: string[]; id?: string; nameKey?: string; readonly?: boolean },
   ): Task<string, PdfErrorReason> {
     const task = new Task<string, PdfErrorReason>();
-    const libraryId = this.generateLibraryId();
+    const libraryId = options?.id ?? this.generateLibraryId();
     const documentId = `stamp-doc-${libraryId}`;
 
     this.engine.createDocument(documentId).wait(
@@ -173,10 +175,11 @@ export class StampPlugin extends BasePlugin<
         const library: StampLibrary = {
           id: libraryId,
           name,
+          nameKey: options?.nameKey,
           document: doc,
           stamps: [],
           categories: options?.categories,
-          readonly: false,
+          readonly: options?.readonly ?? false,
         };
 
         this.libraries.set(libraryId, library);
@@ -200,7 +203,7 @@ export class StampPlugin extends BasePlugin<
 
   addStampToLibrary(
     libraryId: string,
-    stamp: Omit<StampDefinition, 'pageIndex'>,
+    stamp: Omit<StampDefinition, 'id' | 'pageIndex'>,
     pdf: ArrayBuffer,
   ): Task<void, PdfErrorReason> {
     const task = new Task<void, PdfErrorReason>();
@@ -234,6 +237,7 @@ export class StampPlugin extends BasePlugin<
 
             const stampDef: StampDefinition = {
               ...stamp,
+              id: uuidV4(),
               pageIndex: newPage.index,
             };
             library.stamps.push(stampDef);
@@ -320,8 +324,7 @@ export class StampPlugin extends BasePlugin<
               ghostUrl,
               stampSize,
               libraryId,
-              stampName: stamp.name,
-              subject: stamp.subject,
+              stamp,
             });
             task.resolve();
           },
@@ -353,7 +356,7 @@ export class StampPlugin extends BasePlugin<
   private createStampFromAnnotation(
     documentId: string,
     annotation: PdfAnnotationObject,
-    stamp: Omit<StampDefinition, 'pageIndex'>,
+    stamp: Omit<StampDefinition, 'id' | 'pageIndex'>,
     libraryId?: string,
   ): Task<void, PdfErrorReason> {
     const task = new Task<void, PdfErrorReason>();
@@ -403,7 +406,7 @@ export class StampPlugin extends BasePlugin<
   private createStampFromAnnotations(
     documentId: string,
     annotations: PdfAnnotationObject[],
-    stamp: Omit<StampDefinition, 'pageIndex'>,
+    stamp: Omit<StampDefinition, 'id' | 'pageIndex'>,
     libraryId?: string,
   ): Task<void, PdfErrorReason> {
     const task = new Task<void, PdfErrorReason>();
@@ -462,16 +465,29 @@ export class StampPlugin extends BasePlugin<
       return task;
     }
 
-    const customLibrary = Array.from(this.libraries.values()).find(
-      (lib) => lib.name === CUSTOM_LIBRARY_NAME,
-    );
-    if (customLibrary) {
+    const defaults = this.config.defaultLibrary as DefaultLibraryConfig | undefined;
+    if (this.config.defaultLibrary === false || !defaults) {
       const task = new Task<string, PdfErrorReason>();
-      task.resolve(customLibrary.id);
+      task.reject({
+        code: PdfErrorCode.NotSupport,
+        message: 'Default library creation is disabled',
+      });
       return task;
     }
 
-    return this.createNewLibrary(CUSTOM_LIBRARY_NAME, { categories: ['custom'] });
+    const defaultId = defaults.id ?? 'custom';
+
+    if (this.libraries.has(defaultId)) {
+      const task = new Task<string, PdfErrorReason>();
+      task.resolve(defaultId);
+      return task;
+    }
+
+    return this.createNewLibrary(defaults.name ?? 'Custom Stamps', {
+      id: defaultId,
+      nameKey: defaults.nameKey,
+      categories: defaults.categories,
+    });
   }
 
   removeLibrary(id: string): Task<void, PdfErrorReason> {
@@ -548,11 +564,14 @@ export class StampPlugin extends BasePlugin<
 
     engineTask.wait(
       (doc) => {
+        const stamps = config.stamps.map((s) => (s.id ? s : { ...s, id: uuidV4() }));
+
         const library: StampLibrary = {
           id: libraryId,
           name: config.name,
+          nameKey: config.nameKey,
           document: doc,
-          stamps: config.stamps,
+          stamps,
           categories: config.categories,
           readonly: config.readonly ?? false,
         };
@@ -577,7 +596,7 @@ export class StampPlugin extends BasePlugin<
     return task;
   }
 
-  removeStampFromLibrary(libraryId: string, pageIndex: number): Task<void, PdfErrorReason> {
+  removeStampFromLibrary(libraryId: string, stampId: string): Task<void, PdfErrorReason> {
     const task = new Task<void, PdfErrorReason>();
 
     const library = this.libraries.get(libraryId);
@@ -597,16 +616,114 @@ export class StampPlugin extends BasePlugin<
       return task;
     }
 
-    const stampIdx = library.stamps.findIndex((s) => s.pageIndex === pageIndex);
+    const stampIdx = library.stamps.findIndex((s) => s.id === stampId);
     if (stampIdx === -1) {
       task.reject({
         code: PdfErrorCode.NotFound,
-        message: `Stamp at page ${pageIndex} not found in library: ${libraryId}`,
+        message: `Stamp ${stampId} not found in library: ${libraryId}`,
       });
       return task;
     }
 
-    library.stamps.splice(stampIdx, 1);
+    const pageIndex = library.stamps[stampIdx].pageIndex;
+
+    this.engine.deletePage(library.document, pageIndex).wait(
+      () => {
+        library.stamps.splice(stampIdx, 1);
+        library.document.pages.splice(pageIndex, 1);
+        library.document.pageCount = library.document.pages.length;
+
+        for (const s of library.stamps) {
+          if (s.pageIndex > pageIndex) {
+            s.pageIndex--;
+          }
+        }
+        for (let i = 0; i < library.document.pages.length; i++) {
+          library.document.pages[i].index = i;
+        }
+
+        this.emitLibraryChange();
+        task.resolve();
+      },
+      (error) => {
+        this.logger.error(
+          'StampPlugin',
+          'RemoveStampFromLibrary',
+          `Failed to delete page for stamp ${stampId}`,
+          error,
+        );
+        task.fail(error);
+      },
+    );
+
+    return task;
+  }
+
+  updateStamp(
+    libraryId: string,
+    stampId: string,
+    updates: StampDefinitionUpdate,
+  ): Task<void, PdfErrorReason> {
+    const task = new Task<void, PdfErrorReason>();
+
+    const library = this.libraries.get(libraryId);
+    if (!library) {
+      task.reject({
+        code: PdfErrorCode.NotFound,
+        message: `Stamp library not found: ${libraryId}`,
+      });
+      return task;
+    }
+
+    if (library.readonly) {
+      task.reject({
+        code: PdfErrorCode.NotSupport,
+        message: `Cannot update stamps in readonly library: ${libraryId}`,
+      });
+      return task;
+    }
+
+    const stamp = library.stamps.find((s) => s.id === stampId);
+    if (!stamp) {
+      task.reject({
+        code: PdfErrorCode.NotFound,
+        message: `Stamp ${stampId} not found in library: ${libraryId}`,
+      });
+      return task;
+    }
+
+    Object.assign(stamp, updates);
+    this.emitLibraryChange();
+    task.resolve();
+
+    return task;
+  }
+
+  updateLibrary(libraryId: string, updates: StampLibraryUpdate): Task<void, PdfErrorReason> {
+    const task = new Task<void, PdfErrorReason>();
+
+    const library = this.libraries.get(libraryId);
+    if (!library) {
+      task.reject({
+        code: PdfErrorCode.NotFound,
+        message: `Stamp library not found: ${libraryId}`,
+      });
+      return task;
+    }
+
+    if (library.readonly) {
+      task.reject({
+        code: PdfErrorCode.NotSupport,
+        message: `Cannot update readonly library: ${libraryId}`,
+      });
+      return task;
+    }
+
+    if (updates.name !== undefined) library.name = updates.name;
+    if (updates.nameKey !== undefined) library.nameKey = updates.nameKey;
+    if (updates.categories !== undefined) library.categories = updates.categories;
+    if (updates.readonly !== undefined) library.readonly = updates.readonly;
+
     this.emitLibraryChange();
     task.resolve();
 
@@ -728,15 +845,18 @@ export class StampPlugin extends BasePlugin<
         const pdfUrl = this.resolveManifestPdfUrl(url, manifest.pdf);
 
         const stamps: StampDefinition[] = manifest.stamps.map((entry) => ({
+          id: uuidV4(),
           pageIndex: entry.pageIndex,
           name: parseAnnotationName(entry.name),
           subject: entry.subject,
+          subjectKey: entry.subjectKey,
           label: entry.label,
           categories: entry.categories,
         }));
 
         const config: StampLibraryConfig = {
           name: manifest.name,
+          nameKey: manifest.nameKey,
           pdf: pdfUrl,
           stamps,
           categories: manifest.categories,
@@ -772,7 +892,7 @@ export class StampPlugin extends BasePlugin<
   }
 
   private generateLibraryId(): string {
-    return `stamp-lib-${this.nextLibraryId++}`;
+    return uuidV4();
   }
 
   private emitLibraryChange(): void {

@@ -111,6 +111,7 @@ type MessageType =
   | 'extractPages'
   | 'createDocument'
   | 'importPages'
+  | 'deletePage'
   | 'extractText'
   | 'redactTextInRects'
   | 'applyRedaction'
@@ -567,6 +568,10 @@ export class RemoteExecutor implements IPdfiumExecutor {
       srcPageIndices,
       insertIndex,
     ]);
+  }
+
+  deletePage(doc: PdfDocumentObject, pageIndex: number): PdfTask<boolean> {
+    return this.send<boolean>('deletePage', [doc, pageIndex]);
   }
 
   extractText(doc: PdfDocumentObject, pageIndexes: number[]): PdfTask<string> {

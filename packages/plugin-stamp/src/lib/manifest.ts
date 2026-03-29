@@ -10,5 +10,12 @@ export const manifest: PluginManifest<StampPluginConfig> = {
   provides: ['stamp'],
   requires: ['annotation'],
   optional: ['i18n'],
-  defaultConfig: {},
+  defaultConfig: {
+    defaultLibrary: {
+      id: 'custom',
+      name: 'Custom Stamps',
+      nameKey: 'stamp.library.custom',
+      categories: ['custom', 'sidebar'],
+    },
+  },
 };

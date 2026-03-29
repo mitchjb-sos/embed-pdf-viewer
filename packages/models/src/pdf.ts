@@ -3014,6 +3014,7 @@ export enum PdfErrorCode {
   CantSelectOption = 27,
   CantCheckField = 28,
   CantSetAnnotString = 29,
+  CantDeletePage = 30,
 }
 
 export interface PdfErrorReason {
@@ -3697,6 +3698,13 @@ export interface PdfEngine<T = Blob> {
     srcPageIndices: number[],
     insertIndex?: number,
   ) => PdfTask<PdfPageObject[]>;
+  /**
+   * Delete a page from a document
+   * @param doc - pdf document
+   * @param pageIndex - zero-based index of the page to delete
+   * @returns task contains the result
+   */
+  deletePage: (doc: PdfDocumentObject, pageIndex: number) => PdfTask<boolean>;
   /**
    * Extract text on specified pdf pages
    * @param doc - pdf document

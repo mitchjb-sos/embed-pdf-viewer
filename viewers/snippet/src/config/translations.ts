@@ -351,6 +351,12 @@ export const englishTranslations: Locale = {
       pageRange: 'Page 1 to {totalPages}',
       link: 'Link',
     },
+    stamp: {
+      allStamps: 'All Stamps',
+      library: {
+        custom: 'Custom Stamps',
+      },
+    },
   },
 };
 
@@ -703,6 +709,12 @@ export const germanTranslations: Locale = {
       enterPage: 'Seitennummer eingeben',
       pageRange: 'Seite 1 bis {totalPages}',
       link: 'Verknüpfen',
+    },
+    stamp: {
+      allStamps: 'Alle Stempel',
+      library: {
+        custom: 'Eigene Stempel',
+      },
     },
   },
 };
@@ -1057,6 +1069,12 @@ export const dutchTranslations: Locale = {
       pageRange: 'Pagina 1 tot {totalPages}',
       link: 'Koppelen',
     },
+    stamp: {
+      allStamps: 'Alle stempels',
+      library: {
+        custom: 'Eigen stempels',
+      },
+    },
   },
 };
 
@@ -1409,6 +1427,12 @@ export const frenchTranslations: Locale = {
       enterPage: 'Entrer le numéro de page',
       pageRange: 'Page 1 à {totalPages}',
       link: 'Lier',
+    },
+    stamp: {
+      allStamps: 'Tous les tampons',
+      library: {
+        custom: 'Tampons personnalisés',
+      },
     },
   },
 };
@@ -1763,6 +1787,12 @@ export const spanishTranslations: Locale = {
       pageRange: 'Página 1 a {totalPages}',
       link: 'Enlazar',
     },
+    stamp: {
+      allStamps: 'Todos los sellos',
+      library: {
+        custom: 'Sellos personalizados',
+      },
+    },
   },
 };
 
@@ -2109,6 +2139,12 @@ export const simplifiedChineseTranslations: Locale = {
       enterPage: '输入页码',
       pageRange: '第1页到第{totalPages}页',
       link: '链接',
+    },
+    stamp: {
+      allStamps: '所有印章',
+      library: {
+        custom: '自定义印章',
+      },
     },
   },
 };
@@ -2459,6 +2495,12 @@ export const swedishTranslations: Locale = {
       pageRange: 'Sida 1 till {totalPages}',
       link: 'Länk',
     },
+    stamp: {
+      allStamps: 'Alla stämplar',
+      library: {
+        custom: 'Egna stämplar',
+      },
+    },
   },
 };
 
@@ -2806,6 +2848,12 @@ export const japaneseTranslations: Locale = {
       enterPage: 'ページ番号を入力',
       pageRange: '1～{totalPages}ページ',
       link: 'リンク',
+    },
+    stamp: {
+      allStamps: 'すべてのスタンプ',
+      library: {
+        custom: 'カスタムスタンプ',
+      },
     },
   },
 };

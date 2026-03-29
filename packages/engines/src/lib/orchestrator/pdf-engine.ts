@@ -950,6 +950,16 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     );
   }
 
+  deletePage(doc: PdfDocumentObject, pageIndex: number): PdfTask<boolean> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () => this.executor.deletePage(doc, pageIndex),
+        meta: { docId: doc.id, operation: 'deletePage' },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
   extractText(doc: PdfDocumentObject, pageIndexes: number[]): PdfTask<string> {
     return this.workerQueue.enqueue(
       {

@@ -1041,6 +1041,17 @@ export class WebWorkerEngine implements PdfEngine {
     return task;
   }
 
+  deletePage(doc: PdfDocumentObject, pageIndex: number) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'deletePage', doc.id, pageIndex);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<boolean>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'deletePage', [doc, pageIndex]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
   /**
    * {@inheritDoc @embedpdf/models!PdfEngine.redactTextInQuads}
    *

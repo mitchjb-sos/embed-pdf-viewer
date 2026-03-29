@@ -1,5 +1,11 @@
 import { useCapability, usePlugin } from '@embedpdf/core/@framework';
-import { StampPlugin, StampLibrary, ResolvedStamp } from '@embedpdf/plugin-stamp';
+import {
+  StampPlugin,
+  StampLibrary,
+  ResolvedStamp,
+  StampDefinition,
+  RubberStampToolContext,
+} from '@embedpdf/plugin-stamp';
 import { AnnotationPlugin, AnnotationDocumentState } from '@embedpdf/plugin-annotation';
 import { useState, useEffect } from '@framework';
 
@@ -38,11 +44,46 @@ export const useStampsByCategory = (category: string) => {
   return stamps;
 };
 
+export const useStampsByLibrary = (libraryId?: string, category?: string) => {
+  const { provides } = useStampCapability();
+  const [stamps, setStamps] = useState<ResolvedStamp[]>([]);
+
+  useEffect(() => {
+    if (!provides) return;
+
+    const derive = () => {
+      const libraries = provides.getLibraries();
+      const results: ResolvedStamp[] = [];
+
+      for (const library of libraries) {
+        if (libraryId && libraryId !== 'all' && library.id !== libraryId) continue;
+
+        for (const stamp of library.stamps) {
+          if (category) {
+            const libraryMatches = library.categories?.includes(category) ?? false;
+            const stampMatches = stamp.categories?.includes(category) ?? false;
+            if (!libraryMatches && !stampMatches) continue;
+          }
+          results.push({ library, stamp });
+        }
+      }
+
+      setStamps(results);
+    };
+
+    derive();
+    return provides.onLibraryChange(derive);
+  }, [provides, libraryId, category]);
+
+  return stamps;
+};
+
 export const useActiveStamp = (documentId: string) => {
   const { provides: annotation } = useAnnotationCapability();
-  const [activeStamp, setActiveStamp] = useState<{ libraryId: string; stampName: string } | null>(
-    null,
-  );
+  const [activeStamp, setActiveStamp] = useState<{
+    libraryId: string;
+    stamp: StampDefinition;
+  } | null>(null);
 
   useEffect(() => {
     if (!annotation) return;
@@ -50,9 +91,9 @@ export const useActiveStamp = (documentId: string) => {
 
     const derive = (state: AnnotationDocumentState) => {
       if (state.activeToolId === 'rubberStamp' && state.activeToolContext) {
-        const ctx = state.activeToolContext as { libraryId?: string; stampName?: string };
-        if (ctx.libraryId && ctx.stampName) {
-          setActiveStamp({ libraryId: ctx.libraryId, stampName: ctx.stampName });
+        const ctx = state.activeToolContext as unknown as RubberStampToolContext;
+        if (ctx.libraryId && ctx.stamp) {
+          setActiveStamp({ libraryId: ctx.libraryId, stamp: ctx.stamp });
           return;
         }
       }

@@ -429,6 +429,9 @@ export class EngineRunner {
       case 'importPages':
         this.handleTask(request.id, engine.importPages!(...args));
         return;
+      case 'deletePage':
+        this.handleTask(request.id, engine.deletePage!(...args));
+        return;
       case 'extractText':
         this.handleTask(request.id, engine.extractText!(...args));
         return;

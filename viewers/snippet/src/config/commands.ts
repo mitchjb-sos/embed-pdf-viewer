@@ -37,6 +37,7 @@ import {
   PdfPermissionFlag,
   PdfLinkAnnoObject,
   uuidV4,
+  PdfAnnotationName,
 } from '@embedpdf/models';
 import { getEffectivePermission } from '@embedpdf/core';
 
@@ -1944,10 +1945,9 @@ export const commands: Record<string, Command<State>> = {
         .forDocument(documentId);
       if (!stampScope) return;
 
-      const name = `Custom Stamp ${Date.now()}`;
       stampScope.createStampFromAnnotation(selected.object, {
-        name,
-        subject: name,
+        name: PdfAnnotationName.Custom,
+        subject: `Custom Stamp ${Date.now()}`,
         categories: ['custom', 'sidebar'],
       });
 
@@ -1981,10 +1981,9 @@ export const commands: Record<string, Command<State>> = {
       if (!stampScope) return;
 
       const annotations = selected.map((ta) => ta.object);
-      const name = `Custom Stamp ${Date.now()}`;
       stampScope.createStampFromAnnotations(annotations, {
-        name,
-        subject: name,
+        name: PdfAnnotationName.Custom,
+        subject: `Custom Stamp ${Date.now()}`,
         categories: ['custom', 'sidebar'],
       });
 

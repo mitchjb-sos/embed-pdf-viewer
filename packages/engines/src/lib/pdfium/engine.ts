@@ -2751,6 +2751,34 @@ export class PdfiumNative implements IPdfiumExecutor {
     return PdfTaskHelper.resolve(newPages);
   }
 
+  public deletePage(doc: PdfDocumentObject, pageIndex: number): PdfTask<boolean> {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'deletePage', doc.id, pageIndex);
+    this.logger.perf(LOG_SOURCE, LOG_CATEGORY, 'DeletePage', 'Begin', doc.id);
+
+    const ctx = this.cache.getContext(doc.id);
+    if (!ctx) {
+      this.logger.perf(LOG_SOURCE, LOG_CATEGORY, 'DeletePage', 'End', doc.id);
+      return PdfTaskHelper.reject({
+        code: PdfErrorCode.DocNotOpen,
+        message: 'document is not open',
+      });
+    }
+
+    const pageCount = this.pdfiumModule.FPDF_GetPageCount(ctx.docPtr);
+    if (pageIndex < 0 || pageIndex >= pageCount) {
+      this.logger.perf(LOG_SOURCE, LOG_CATEGORY, 'DeletePage', 'End', doc.id);
+      return PdfTaskHelper.reject({
+        code: PdfErrorCode.CantDeletePage,
+        message: `page index ${pageIndex} out of range (0..${pageCount - 1})`,
+      });
+    }
+
+    this.pdfiumModule.FPDFPage_Delete(ctx.docPtr, pageIndex);
+
+    this.logger.perf(LOG_SOURCE, LOG_CATEGORY, 'DeletePage', 'End', doc.id);
+    return PdfTaskHelper.resolve(true);
+  }
+
   /**
    * {@inheritDoc @embedpdf/models!PdfEngine.extractText}
    *
