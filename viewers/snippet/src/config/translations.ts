@@ -185,6 +185,10 @@ export const englishTranslations: Locale = {
       overlayTextPlaceholder: 'e.g., REDACTED',
       rotation: 'Rotation',
     },
+    insert: {
+      image: 'Image',
+      rubberStamp: 'Rubber Stamp',
+    },
     redaction: {
       redact: 'Redact',
       area: 'Redact Area',
@@ -548,6 +552,10 @@ export const germanTranslations: Locale = {
       overlayText: 'Überlagerungstext',
       overlayTextPlaceholder: 'z.B. GESCHWÄRZT',
       rotation: 'Drehung',
+    },
+    insert: {
+      image: 'Bild',
+      rubberStamp: 'Stempel',
     },
     redaction: {
       redact: 'Schwärzen',
@@ -915,6 +923,10 @@ export const dutchTranslations: Locale = {
       overlayTextPlaceholder: 'bijv. GEREDIGEERD',
       rotation: 'Rotatie',
     },
+    insert: {
+      image: 'Afbeelding',
+      rubberStamp: 'Stempel',
+    },
     redaction: {
       redact: 'Redigeren',
       area: 'Gebied redigeren',
@@ -1278,6 +1290,10 @@ export const frenchTranslations: Locale = {
       overlayText: 'Texte de superposition',
       overlayTextPlaceholder: 'ex: CAVIARDÉ',
       rotation: 'Rotation',
+    },
+    insert: {
+      image: 'Image',
+      rubberStamp: 'Tampon',
     },
     redaction: {
       redact: 'Caviarder',
@@ -1645,6 +1661,10 @@ export const spanishTranslations: Locale = {
       overlayTextPlaceholder: 'ej: REDACTADO',
       rotation: 'Rotación',
     },
+    insert: {
+      image: 'Imagen',
+      rubberStamp: 'Sello',
+    },
     redaction: {
       redact: 'Redactar',
       area: 'Redactar área',
@@ -2009,6 +2029,10 @@ export const simplifiedChineseTranslations: Locale = {
       overlayTextPlaceholder: '例如：已遮蔽',
       rotation: '旋转',
     },
+    insert: {
+      image: '图片',
+      rubberStamp: '印章',
+    },
     redaction: {
       redact: '遮蔽',
       area: '遮蔽区域',
@@ -2364,6 +2388,10 @@ export const swedishTranslations: Locale = {
       overlayText: 'Textöverlägg',
       overlayTextPlaceholder: 't.ex., MASKERAD',
       rotation: 'Rotera',
+    },
+    insert: {
+      image: 'Bild',
+      rubberStamp: 'Stämpel',
     },
     redaction: {
       redact: 'Maskera',
@@ -2724,6 +2752,10 @@ export const japaneseTranslations: Locale = {
       overlayText: 'オーバーレイテキスト',
       overlayTextPlaceholder: '例: 黒塗り済み',
       rotation: '回転',
+    },
+    insert: {
+      image: '画像',
+      rubberStamp: 'スタンプ',
     },
     redaction: {
       redact: '黒塗り',

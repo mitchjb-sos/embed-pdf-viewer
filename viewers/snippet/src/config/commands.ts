@@ -1086,7 +1086,7 @@ export const commands: Record<string, Command<State>> = {
   // ─────────────────────────────────────────────────────────
   'insert:add-rubber-stamp': {
     id: 'insert:add-rubber-stamp',
-    label: 'Rubber Stamp',
+    labelKey: 'insert.rubberStamp',
     icon: 'rubberStamp',
     categories: ['insert', 'insert-rubber-stamp'],
     action: ({ registry, documentId }) => {
@@ -1134,7 +1134,7 @@ export const commands: Record<string, Command<State>> = {
 
   'insert:add-image': {
     id: 'insert:add-image',
-    label: 'Image',
+    labelKey: 'insert.image',
     icon: 'photo',
     categories: ['insert', 'insert-image'],
     action: ({ registry, documentId }) => {

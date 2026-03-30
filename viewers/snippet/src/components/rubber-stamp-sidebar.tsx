@@ -79,7 +79,7 @@ export function RubberStampSidebar({
           <h2 class="text-fg-primary text-md font-medium">
             {translate('stamp.title', { fallback: 'Rubber Stamps' })}
           </h2>
-          {stamps.length > 0 && (
+          {/*stamps.length > 0 && (
             <button
               class="text-fg-muted hover:text-fg-primary rounded p-1 transition-colors"
               onClick={handleExport}
@@ -87,7 +87,7 @@ export function RubberStampSidebar({
             >
               <Icon icon="download" className="h-4 w-4" />
             </button>
-          )}
+          )*/}
         </div>
 
         {libraries.length > 1 && (

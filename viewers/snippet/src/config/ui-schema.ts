@@ -788,6 +788,7 @@ export const viewerUISchema: UISchema = {
               variant: 'icon',
               categories: ['insert', 'insert-rubber-stamp'],
             },
+            /*
             {
               type: 'command-button',
               id: 'add-signature',
@@ -801,7 +802,7 @@ export const viewerUISchema: UISchema = {
               commandId: 'insert:add-attachment',
               variant: 'icon',
               categories: ['insert', 'insert-attachment'],
-            },
+            },*/
             {
               type: 'command-button',
               id: 'add-image',
