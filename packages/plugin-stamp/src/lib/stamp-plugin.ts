@@ -39,6 +39,7 @@ export class StampPlugin extends BasePlugin<
 > {
   static readonly id = STAMP_PLUGIN_ID;
 
+  private readonly instanceId = uuidV4();
   private readonly libraries = new Map<string, StampLibrary>();
   private readonly libraryChange$ = createEmitter<StampLibrary[]>();
   private readonly activeStamp$ = createScopedEmitter<
@@ -186,7 +187,7 @@ export class StampPlugin extends BasePlugin<
   ): Task<string, PdfErrorReason> {
     const task = new Task<string, PdfErrorReason>();
     const libraryId = options?.id ?? this.generateLibraryId();
-    const documentId = `stamp-doc-${libraryId}`;
+    const documentId = this.getLibraryDocumentId(libraryId);
 
     this.engine.createDocument(documentId).wait(
       (doc) => {
@@ -614,7 +615,7 @@ export class StampPlugin extends BasePlugin<
   private loadLibraryInternal(config: StampLibraryConfig): Task<string, PdfErrorReason> {
     const task = new Task<string, PdfErrorReason>();
     const libraryId = config.id ?? this.generateLibraryId();
-    const documentId = `stamp-doc-${libraryId}`;
+    const documentId = this.getLibraryDocumentId(libraryId);
 
     const engineTask =
       typeof config.pdf === 'string'
@@ -953,6 +954,10 @@ export class StampPlugin extends BasePlugin<
 
   private generateLibraryId(): string {
     return uuidV4();
+  }
+
+  private getLibraryDocumentId(libraryId: string): string {
+    return `stamp-doc-${this.instanceId}-${libraryId}`;
   }
 
   private emitLibraryChange(): void {

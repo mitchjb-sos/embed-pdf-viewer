@@ -2647,6 +2647,9 @@ importers:
       '@embedpdf/plugin-spread':
         specifier: workspace:*
         version: link:../packages/plugin-spread
+      '@embedpdf/plugin-stamp':
+        specifier: workspace:*
+        version: link:../packages/plugin-stamp
       '@embedpdf/plugin-thumbnail':
         specifier: workspace:*
         version: link:../packages/plugin-thumbnail
