@@ -2537,7 +2537,7 @@ export function unionFlags(flags: MatchFlag[]) {
  *
  * @public
  */
-export type ImageConversionTypes = 'image/webp' | 'image/png' | 'image/jpeg';
+export type ImageConversionTypes = 'image/webp' | 'image/png' | 'image/jpeg' | 'image/bmp';
 
 /**
  * Targe for searching
