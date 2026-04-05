@@ -4,6 +4,7 @@ import {
   LineEndings,
   PdfAnnotationLineEnding,
   PdfRectDifferences,
+  PdfFreeTextAnnoObject,
   rotateAndTranslatePoint,
   rectFromPoints,
   expandRect,
@@ -301,3 +302,48 @@ export function computeCalloutOverallRect(
     size: { width: maxX - minX, height: maxY - minY },
   };
 }
+
+export const calloutVertexConfig = {
+  extractVertices: (a: PdfFreeTextAnnoObject): Position[] => {
+    const textBox = computeTextBoxFromRD(a.rect, a.rectangleDifferences);
+    const cl = a.calloutLine;
+    if (!cl || cl.length < 3) {
+      return [
+        { x: a.rect.origin.x, y: a.rect.origin.y },
+        { x: a.rect.origin.x, y: a.rect.origin.y },
+        { x: textBox.origin.x, y: textBox.origin.y },
+        { x: textBox.origin.x + textBox.size.width, y: textBox.origin.y + textBox.size.height },
+      ];
+    }
+    return [
+      cl[0],
+      cl[1],
+      { x: textBox.origin.x, y: textBox.origin.y },
+      { x: textBox.origin.x + textBox.size.width, y: textBox.origin.y + textBox.size.height },
+    ];
+  },
+  transformAnnotation: (a: PdfFreeTextAnnoObject, vertices: Position[]) => {
+    if (vertices.length < 4) return {};
+    const [arrowTip, knee, tbTL, tbBR] = vertices;
+    const textBox = {
+      origin: { x: Math.min(tbTL.x, tbBR.x), y: Math.min(tbTL.y, tbBR.y) },
+      size: {
+        width: Math.abs(tbBR.x - tbTL.x),
+        height: Math.abs(tbBR.y - tbTL.y),
+      },
+    };
+    const connectionPoint = computeCalloutConnectionPoint(knee, textBox);
+    const calloutLine = [arrowTip, knee, connectionPoint];
+    const overallRect = computeCalloutOverallRect(
+      textBox,
+      calloutLine,
+      a.lineEnding,
+      a.strokeWidth ?? 1,
+    );
+    return {
+      calloutLine,
+      rect: overallRect,
+      rectangleDifferences: computeRDFromTextBox(overallRect, textBox),
+    };
+  },
+};

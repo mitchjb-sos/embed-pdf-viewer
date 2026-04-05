@@ -18,6 +18,8 @@ import {
 } from '../patching';
 
 const CLICK_THRESHOLD = 5;
+const DEFAULT_TB_WIDTH = 150;
+const DEFAULT_TB_HEIGHT = 40;
 
 type Phase = 'arrow' | 'knee' | 'textbox' | 'idle';
 
@@ -36,6 +38,14 @@ export const calloutFreeTextHandlerFactory: HandlerFactory<PdfFreeTextAnnoObject
     const clampToPage = (pos: { x: number; y: number }) => ({
       x: clamp(pos.x, 0, pageSize.width),
       y: clamp(pos.y, 0, pageSize.height),
+    });
+
+    const clampTextBox = (tb: Rect): Rect => ({
+      origin: {
+        x: clamp(tb.origin.x, 0, pageSize.width - tb.size.width),
+        y: clamp(tb.origin.y, 0, pageSize.height - tb.size.height),
+      },
+      size: tb.size,
     });
 
     const getDefaults = () => {
@@ -72,7 +82,7 @@ export const calloutFreeTextHandlerFactory: HandlerFactory<PdfFreeTextAnnoObject
       const phase = getPhase();
 
       if (phase === 'knee' && arrowTip) {
-        // Phase 1: rubber band from arrow tip to cursor
+        const calloutLine = [arrowTip, cursor];
         const minX = Math.min(arrowTip.x, cursor.x);
         const minY = Math.min(arrowTip.y, cursor.y);
         const w = Math.abs(arrowTip.x - cursor.x);
@@ -81,21 +91,35 @@ export const calloutFreeTextHandlerFactory: HandlerFactory<PdfFreeTextAnnoObject
           origin: { x: minX, y: minY },
           size: { width: Math.max(w, 1), height: Math.max(h, 1) },
         };
-        return { type: PdfAnnotationSubtype.FREETEXT, bounds, data: { ...defaults, rect: bounds } };
+        return {
+          type: PdfAnnotationSubtype.FREETEXT,
+          bounds,
+          data: {
+            ...defaults,
+            rect: bounds,
+            calloutLine,
+          },
+        };
       }
 
       if (phase === 'textbox' && arrowTip && knee) {
-        // Phase 2: full callout line + text box preview at cursor
         const tbStart = getTextBoxStart();
-        const tbCorner1 = tbStart ?? cursor;
-        const tbCorner2 = getDragging() ? cursor : tbCorner1;
-        const textBox: Rect = {
-          origin: { x: Math.min(tbCorner1.x, tbCorner2.x), y: Math.min(tbCorner1.y, tbCorner2.y) },
-          size: {
-            width: Math.max(Math.abs(tbCorner2.x - tbCorner1.x), 20),
-            height: Math.max(Math.abs(tbCorner2.y - tbCorner1.y), 14),
-          },
-        };
+        let textBox: Rect;
+        if (getDragging() && tbStart) {
+          textBox = {
+            origin: { x: Math.min(tbStart.x, cursor.x), y: Math.min(tbStart.y, cursor.y) },
+            size: {
+              width: Math.max(Math.abs(cursor.x - tbStart.x), 20),
+              height: Math.max(Math.abs(cursor.y - tbStart.y), 14),
+            },
+          };
+        } else {
+          textBox = {
+            origin: { x: cursor.x - DEFAULT_TB_WIDTH / 2, y: cursor.y - DEFAULT_TB_HEIGHT / 2 },
+            size: { width: DEFAULT_TB_WIDTH, height: DEFAULT_TB_HEIGHT },
+          };
+        }
+        textBox = clampTextBox(textBox);
         const connectionPoint = computeCalloutConnectionPoint(knee, textBox);
         const calloutLine = [arrowTip, knee, connectionPoint];
         const overallRect = computeCalloutOverallRect(
@@ -107,19 +131,25 @@ export const calloutFreeTextHandlerFactory: HandlerFactory<PdfFreeTextAnnoObject
         return {
           type: PdfAnnotationSubtype.FREETEXT,
           bounds: overallRect,
-          data: { ...defaults, rect: overallRect },
+          data: {
+            ...defaults,
+            rect: overallRect,
+            calloutLine,
+            textBox,
+          },
         };
       }
 
       return null;
     };
 
-    const commitCallout = (textBox: Rect) => {
+    const commitCallout = (tb: Rect) => {
       const defaults = getDefaults();
       const arrowTip = getArrowTip();
       const knee = getKnee();
       if (!defaults || !arrowTip || !knee) return;
 
+      const textBox = clampTextBox(tb);
       const connectionPoint = computeCalloutConnectionPoint(knee, textBox);
       const calloutLine = [arrowTip, knee, connectionPoint];
       const overallRect = computeCalloutOverallRect(
@@ -216,9 +246,13 @@ export const calloutFreeTextHandlerFactory: HandlerFactory<PdfFreeTextAnnoObject
               };
               commitCallout(textBox);
             } else {
-              // Too small drag, reset drag state but stay in textbox phase
-              setTextBoxStart(null);
-              setDragging(false);
+              commitCallout({
+                origin: {
+                  x: tbStart.x - DEFAULT_TB_WIDTH / 2,
+                  y: tbStart.y - DEFAULT_TB_HEIGHT / 2,
+                },
+                size: { width: DEFAULT_TB_WIDTH, height: DEFAULT_TB_HEIGHT },
+              });
             }
           }
           evt.releasePointerCapture?.();
@@ -226,10 +260,6 @@ export const calloutFreeTextHandlerFactory: HandlerFactory<PdfFreeTextAnnoObject
         }
 
         setDownPos(null);
-        evt.releasePointerCapture?.();
-      },
-      onPointerLeave: (_, evt) => {
-        resetState();
         evt.releasePointerCapture?.();
       },
       onPointerCancel: (_, evt) => {

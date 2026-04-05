@@ -30,6 +30,7 @@ import { Polygon } from './annotations/polygon';
 import { Text } from './annotations/text';
 import { FreeText } from './annotations/free-text';
 import { CalloutFreeText } from './annotations/callout-free-text';
+import { CalloutFreeTextPreview } from './annotations/callout-free-text-preview';
 import { Stamp } from './annotations/stamp';
 import { Link } from './annotations/link';
 import { Highlight } from './text-markup/highlight';
@@ -287,7 +288,7 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
     id: 'freeTextCallout',
     matches: (a): a is PdfFreeTextAnnoObject =>
       a.type === PdfAnnotationSubtype.FREETEXT && a.intent === 'FreeTextCallout',
-    matchesPreview: (p) => p.type === PdfAnnotationSubtype.FREETEXT,
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.FREETEXT && !!p.data.calloutLine,
     render: ({
       annotation,
       currentObject,
@@ -310,61 +311,21 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
         appearanceActive={appearanceActive}
       />
     ),
-    renderPreview: ({ data }) => (
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          border: `1px dashed ${data.fontColor || '#000000'}`,
-          backgroundColor: 'transparent',
-        }}
+    renderPreview: ({ data, bounds, scale }) => (
+      <CalloutFreeTextPreview
+        calloutLine={data.calloutLine}
+        textBox={data.textBox}
+        bounds={bounds}
+        scale={scale}
+        strokeColor={data.strokeColor}
+        strokeWidth={data.strokeWidth}
+        color={data.color}
+        backgroundColor={data.backgroundColor}
+        opacity={data.opacity}
+        lineEnding={data.lineEnding}
       />
     ),
-    vertexConfig: {
-      extractVertices: (a) => {
-        const textBox = patching.computeTextBoxFromRD(a.rect, a.rectangleDifferences);
-        const cl = a.calloutLine;
-        if (!cl || cl.length < 3) {
-          // Fallback: return corners of the annotation rect as vertices
-          return [
-            { x: a.rect.origin.x, y: a.rect.origin.y },
-            { x: a.rect.origin.x, y: a.rect.origin.y },
-            { x: textBox.origin.x, y: textBox.origin.y },
-            { x: textBox.origin.x + textBox.size.width, y: textBox.origin.y + textBox.size.height },
-          ];
-        }
-        return [
-          cl[0], // arrow tip
-          cl[1], // knee
-          { x: textBox.origin.x, y: textBox.origin.y }, // text box top-left
-          { x: textBox.origin.x + textBox.size.width, y: textBox.origin.y + textBox.size.height }, // text box bottom-right
-        ];
-      },
-      transformAnnotation: (a, vertices) => {
-        if (vertices.length < 4) return {};
-        const [arrowTip, knee, tbTL, tbBR] = vertices;
-        const textBox = {
-          origin: { x: Math.min(tbTL.x, tbBR.x), y: Math.min(tbTL.y, tbBR.y) },
-          size: {
-            width: Math.abs(tbBR.x - tbTL.x),
-            height: Math.abs(tbBR.y - tbTL.y),
-          },
-        };
-        const connectionPoint = patching.computeCalloutConnectionPoint(knee, textBox);
-        const calloutLine = [arrowTip, knee, connectionPoint];
-        const overallRect = patching.computeCalloutOverallRect(
-          textBox,
-          calloutLine,
-          a.lineEnding,
-          a.strokeWidth ?? 1,
-        );
-        return {
-          calloutLine,
-          rect: overallRect,
-          rectangleDifferences: patching.computeRDFromTextBox(overallRect, textBox),
-        };
-      },
-    },
+    vertexConfig: patching.calloutVertexConfig,
     interactionDefaults: { isDraggable: true, isResizable: false, isRotatable: false },
     isDraggable: (toolDraggable, { isEditing }) => toolDraggable && !isEditing,
     onDoubleClick: (id, setEditingId) => setEditingId(id),
@@ -376,7 +337,7 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
     id: 'freeText',
     matches: (a): a is PdfFreeTextAnnoObject =>
       a.type === PdfAnnotationSubtype.FREETEXT && a.intent !== 'FreeTextCallout',
-    matchesPreview: (p) => p.type === PdfAnnotationSubtype.FREETEXT,
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.FREETEXT && !p.data.calloutLine,
     render: ({
       annotation,
       currentObject,
